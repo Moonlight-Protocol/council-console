@@ -26,12 +26,34 @@ interface StellarSdkSubset {
   StrKey: { encodeContract(bytes: Uint8Array): string; isValidEd25519PublicKey(key: string): boolean };
   Keypair: { fromSecret(secret: string): unknown; random(): unknown };
   nativeToScVal(value: unknown, opts?: { type: string }): unknown;
-  xdr: Record<string, unknown>;
+  xdr: XdrNamespace;
   rpc: {
     Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
     assembleTransaction(tx: Transaction, sim: SimulationResult): { build(): Transaction };
   };
   hash(data: Uint8Array): Uint8Array;
+}
+
+interface XdrNamespace {
+  HostFunction: {
+    hostFunctionTypeUploadContractWasm(wasm: Uint8Array): unknown;
+    hostFunctionTypeCreateContractV2(args: unknown): unknown;
+  };
+  CreateContractArgsV2: new (opts: {
+    contractIdPreimage: unknown;
+    executable: unknown;
+    constructorArgs: unknown[];
+  }) => unknown;
+  ContractIdPreimage: {
+    contractIdPreimageFromAddress(preimage: unknown): unknown;
+  };
+  ContractIdPreimageFromAddress: new (opts: {
+    address: unknown;
+    salt: unknown;
+  }) => unknown;
+  ContractExecutable: {
+    contractExecutableWasm(hash: unknown): unknown;
+  };
 }
 
 interface StellarAccount { sequenceNumber(): string }
@@ -128,10 +150,7 @@ export async function buildInstallWasmTx(
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(Operation.invokeHostFunction({
-      func: (xdr as Record<string, unknown>).HostFunction
-        ? (stellar.xdr as { HostFunction: { hostFunctionTypeUploadContractWasm(w: Uint8Array): unknown } })
-            .HostFunction.hostFunctionTypeUploadContractWasm(wasmBytes)
-        : undefined,
+      func: xdr.HostFunction.hostFunctionTypeUploadContractWasm(wasmBytes),
       auth: [],
     }))
     .setTimeout(300)
@@ -162,29 +181,21 @@ export async function buildDeployContractTx(
 
   const account = await server.getAccount(sourcePublicKey);
   const salt = crypto.getRandomValues(new Uint8Array(32));
-  const xdrNs = xdr as Record<string, new (...args: unknown[]) => unknown> & {
-    HostFunction: { hostFunctionTypeCreateContractV2(args: unknown): unknown };
-    CreateContractArgsV2: new (opts: unknown) => unknown;
-    ContractIdPreimage: { contractIdPreimageFromAddress(opts: unknown): unknown };
-    ContractIdPreimageFromAddress: new (opts: unknown) => unknown;
-    ContractExecutable: { contractExecutableWasm(hash: unknown): unknown };
-    ScVal: unknown;
-  };
 
   const tx = new TransactionBuilder(account, {
     fee: "10000000",
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(Operation.invokeHostFunction({
-      func: xdrNs.HostFunction.hostFunctionTypeCreateContractV2(
-        new xdrNs.CreateContractArgsV2({
-          contractIdPreimage: xdrNs.ContractIdPreimage.contractIdPreimageFromAddress(
-            new xdrNs.ContractIdPreimageFromAddress({
+      func: xdr.HostFunction.hostFunctionTypeCreateContractV2(
+        new xdr.CreateContractArgsV2({
+          contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
+            new xdr.ContractIdPreimageFromAddress({
               address: Address.fromString(sourcePublicKey).toScAddress(),
               salt: Buffer.from(salt),
             })
           ),
-          executable: xdrNs.ContractExecutable.contractExecutableWasm(Buffer.from(wasmHash)),
+          executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(wasmHash)),
           constructorArgs,
         })
       ),
