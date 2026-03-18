@@ -1,0 +1,50 @@
+/**
+ * Local persistence for managed councils and contracts.
+ * No reverse lookup exists on-chain, so the console tracks
+ * which contracts this admin deployed/manages.
+ */
+
+export interface ManagedCouncil {
+  channelAuthId: string;
+  privacyChannelId?: string;
+  assetCode: string;
+  assetIssuer?: string;
+  adminAddress: string;
+  providers: string[];
+  createdAt: string;
+  label?: string;
+}
+
+const STORE_KEY = "council_console_councils";
+
+export function loadCouncils(): ManagedCouncil[] {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function saveCouncils(councils: ManagedCouncil[]): void {
+  localStorage.setItem(STORE_KEY, JSON.stringify(councils));
+}
+
+export function addCouncil(council: ManagedCouncil): void {
+  const councils = loadCouncils();
+  councils.push(council);
+  saveCouncils(councils);
+}
+
+export function updateCouncil(channelAuthId: string, update: Partial<ManagedCouncil>): void {
+  const councils = loadCouncils();
+  const idx = councils.findIndex((q) => q.channelAuthId === channelAuthId);
+  if (idx === -1) return;
+  councils[idx] = { ...councils[idx], ...update };
+  saveCouncils(councils);
+}
+
+export function getCouncil(channelAuthId: string): ManagedCouncil | undefined {
+  return loadCouncils().find((q) => q.channelAuthId === channelAuthId);
+}
