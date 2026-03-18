@@ -23,14 +23,32 @@ await esbuild.build({
   plugins: [...denoPlugins({ configPath: `${Deno.cwd()}/deno.json` })],
 });
 
-// Patch dynamic require for buffer polyfill (stellar-sdk transitive deps)
+// Patch: the wallets kit has transitive deps that use CJS require("buffer") and
+// ESM import "buffer", which esbuild can't resolve through the Deno plugin.
+// Fix both by: 1) patching __require to return our polyfill for "buffer",
+// 2) removing the bare ESM import.
+// Regexes use \s* to handle both minified and non-minified output.
 let appJs = await Deno.readTextFile("public/app.js");
+const before = appJs;
+
+// Patch __require: intercept require("buffer") before it throws
 appJs = appJs.replace(
-  `throw Error('Dynamic require of "' + x + '" is not supported')`,
-  `if(x==="buffer")return globalThis.__buffer_polyfill;throw Error('Dynamic require of "' + x + '" is not supported')`,
+  /throw\s*(Error\('Dynamic require of "'\s*\+\s*(\w+)\s*\+\s*'" is not supported'\))/,
+  (_match, errExpr, varName) =>
+    `if(${varName}==="buffer")return globalThis.__buffer_polyfill;throw ${errExpr}`,
 );
+
+if (appJs === before) {
+  esbuild.stop();
+  throw new Error(
+    "Build failed: could not patch __require for buffer polyfill. " +
+    "esbuild's CJS shim format may have changed.",
+  );
+}
+
+// Remove bare ESM buffer imports (handles both minified and non-minified output)
 appJs = appJs.replace(
-  /import \{ Buffer as Buffer\d* \} from "buffer";/g,
+  /import\s*\{[^}]*\}\s*from\s*"buffer"\s*;?/g,
   "",
 );
 await Deno.writeTextFile("public/app.js", appJs);
