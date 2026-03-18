@@ -6,16 +6,13 @@ declare global {
   interface Window {
     __CONSOLE_CONFIG__?: {
       environment?: string;
-      stellarNetwork?: "testnet" | "mainnet";
+      stellarNetwork?: "testnet" | "mainnet" | "standalone";
       rpcUrl?: string;
       horizonUrl?: string;
       friendbotUrl?: string;
       posthogKey?: string;
       posthogHost?: string;
-      otel?: {
-        endpoint?: string;
-        auth?: string;
-      };
+      otelEndpoint?: string;
     };
   }
 }
@@ -30,5 +27,12 @@ export const HORIZON_URL = config.horizonUrl ?? "https://horizon-testnet.stellar
 export const FRIENDBOT_URL = config.friendbotUrl ?? "https://friendbot.stellar.org";
 export const POSTHOG_KEY = config.posthogKey ?? "";
 export const POSTHOG_HOST = config.posthogHost ?? "https://us.i.posthog.com";
-export const OTEL_ENDPOINT = config.otel?.endpoint ?? "";
-export const OTEL_AUTH = config.otel?.auth ?? "";
+export const OTEL_ENDPOINT = config.otelEndpoint ?? "";
+
+export function getNetworkPassphrase(): string {
+  switch (STELLAR_NETWORK) {
+    case "mainnet": return "Public Global Stellar Network ; September 2015";
+    case "standalone": return "Standalone Network ; February 2017";
+    default: return "Test SDF Network ; September 2015";
+  }
+}

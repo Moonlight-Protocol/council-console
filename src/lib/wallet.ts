@@ -9,17 +9,25 @@ import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/stellar-walle
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit/types.mjs";
 import { FreighterModule, FREIGHTER_ID } from "@creit.tech/stellar-wallets-kit/modules/freighter.module.mjs";
 import "@creit.tech/stellar-wallets-kit/components/modal/stellar-wallets-modal.mjs";
-import { ENVIRONMENT } from "./config.ts";
+import { STELLAR_NETWORK, getNetworkPassphrase } from "./config.ts";
 
 const STORAGE_KEY = "council_admin_address";
 
 let kit: StellarWalletsKit | null = null;
 let connectedAddress: string | null = null;
 
+function getWalletNetwork(): WalletNetwork {
+  switch (STELLAR_NETWORK) {
+    case "mainnet": return WalletNetwork.PUBLIC;
+    case "standalone": return WalletNetwork.STANDALONE;
+    default: return WalletNetwork.TESTNET;
+  }
+}
+
 function getKit(): StellarWalletsKit {
   if (!kit) {
     kit = new StellarWalletsKit({
-      network: ENVIRONMENT === "production" ? WalletNetwork.TESTNET : WalletNetwork.STANDALONE,
+      network: getWalletNetwork(),
       selectedWalletId: FREIGHTER_ID,
       modules: [new FreighterModule()],
     });
@@ -77,9 +85,7 @@ export async function signTransaction(xdr: string): Promise<string> {
 
   const { signedTxXdr } = await walletKit.signTransaction(xdr, {
     address,
-    networkPassphrase: ENVIRONMENT === "production"
-      ? "Test SDF Network ; September 2015"
-      : "Standalone Network ; February 2017",
+    networkPassphrase: getNetworkPassphrase(),
   });
 
   return signedTxXdr;

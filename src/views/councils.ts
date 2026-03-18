@@ -19,15 +19,15 @@ function renderContent(): HTMLElement {
     return el;
   }
 
-  const rows = councils.map((q) => `
+  const rows = councils.map((council) => `
     <tr>
-      <td>${escapeHtml(q.label || "Unnamed")}</td>
-      <td class="mono">${truncateAddress(q.channelAuthId)}</td>
-      <td class="mono">${q.privacyChannelId ? truncateAddress(q.privacyChannelId) : "<span class='badge badge-pending'>pending</span>"}</td>
-      <td>${escapeHtml(q.assetCode)}</td>
-      <td>${q.providers.length}</td>
+      <td>${escapeHtml(council.label || "Unnamed")}</td>
+      <td class="mono">${truncateAddress(council.channelAuthId)}</td>
+      <td class="mono">${council.privacyChannelId ? truncateAddress(council.privacyChannelId) : "<span class='badge badge-pending'>pending</span>"}</td>
+      <td>${escapeHtml(council.assetCode)}</td>
+      <td>${council.providers.length}</td>
       <td>
-        <a href="#/providers?council=${encodeURIComponent(q.channelAuthId)}" class="btn-link">Manage</a>
+        <a href="#/providers?council=${encodeURIComponent(council.channelAuthId)}" class="btn-link">Manage</a>
       </td>
     </tr>
   `).join("");

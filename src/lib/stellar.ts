@@ -2,26 +2,95 @@
  * Stellar/Soroban helpers for contract deployment and invocation.
  * All transactions are built unsigned and signed via wallet (Freighter).
  */
-import { RPC_URL, HORIZON_URL, FRIENDBOT_URL, STELLAR_NETWORK } from "./config.ts";
+import { RPC_URL, HORIZON_URL, FRIENDBOT_URL, getNetworkPassphrase } from "./config.ts";
 
-const NETWORK_PASSPHRASE = STELLAR_NETWORK === "mainnet"
-  ? "Public Global Stellar Network ; September 2015"
-  : "Test SDF Network ; September 2015";
+const NETWORK_PASSPHRASE = getNetworkPassphrase();
 
 export { RPC_URL, HORIZON_URL, FRIENDBOT_URL, NETWORK_PASSPHRASE };
 
-// Lazy-loaded SDK
-// deno-lint-ignore no-explicit-any
-let StellarSdk: any = null;
+/** Subset of stellar-sdk used by this module. */
+interface StellarSdkSubset {
+  TransactionBuilder: {
+    new (account: StellarAccount, opts: { fee: string; networkPassphrase: string }): TxBuilder;
+    fromXDR(xdr: string, networkPassphrase: string): Transaction;
+  };
+  Operation: {
+    invokeHostFunction(opts: { func: unknown; auth: unknown[] }): unknown;
+  };
+  Contract: new (id: string) => { call(fn: string, ...args: unknown[]): unknown };
+  Address: { fromString(addr: string): { toScAddress(): unknown } };
+  Asset: {
+    native(): { contractId(passphrase: string): string };
+    new (code: string, issuer: string): { contractId(passphrase: string): string };
+  };
+  StrKey: { encodeContract(bytes: Uint8Array): string; isValidEd25519PublicKey(key: string): boolean };
+  Keypair: { fromSecret(secret: string): unknown; random(): unknown };
+  nativeToScVal(value: unknown, opts?: { type: string }): unknown;
+  xdr: XdrNamespace;
+  rpc: {
+    Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
+    assembleTransaction(tx: Transaction, sim: SimulationResult): { build(): Transaction };
+  };
+  hash(data: Uint8Array): Uint8Array;
+}
 
-export async function sdk() {
+interface XdrNamespace {
+  HostFunction: {
+    hostFunctionTypeUploadContractWasm(wasm: Uint8Array): unknown;
+    hostFunctionTypeCreateContractV2(args: unknown): unknown;
+  };
+  CreateContractArgsV2: new (opts: {
+    contractIdPreimage: unknown;
+    executable: unknown;
+    constructorArgs: unknown[];
+  }) => unknown;
+  ContractIdPreimage: {
+    contractIdPreimageFromAddress(preimage: unknown): unknown;
+  };
+  ContractIdPreimageFromAddress: new (opts: {
+    address: unknown;
+    salt: unknown;
+  }) => unknown;
+  ContractExecutable: {
+    contractExecutableWasm(hash: unknown): unknown;
+  };
+}
+
+interface StellarAccount { sequenceNumber(): string }
+interface TxBuilder {
+  addOperation(op: unknown): TxBuilder;
+  setTimeout(seconds: number): TxBuilder;
+  build(): Transaction;
+}
+interface Transaction {
+  toXDR(): string;
+  sign(keypair: unknown): void;
+}
+interface RpcServer {
+  getAccount(publicKey: string): Promise<StellarAccount>;
+  simulateTransaction(tx: Transaction): Promise<SimulationResult>;
+  sendTransaction(tx: Transaction): Promise<{ hash: string }>;
+  getTransaction(hash: string): Promise<TxResult>;
+  getLatestLedger(): Promise<{ sequence: number }>;
+}
+interface SimulationResult { error?: string }
+interface TxResult {
+  status: string;
+  returnValue?: { address(): { contractId(): Uint8Array } };
+  resultMetaXdr?: { v3(): { sorobanMeta(): { events(): SorobanEvent[] } | null } };
+}
+interface SorobanEvent { contractId(): Uint8Array | null }
+
+let StellarSdk: StellarSdkSubset | null = null;
+
+export async function sdk(): Promise<StellarSdkSubset> {
   if (!StellarSdk) {
-    StellarSdk = await import("stellar-sdk");
+    StellarSdk = await import("stellar-sdk") as unknown as StellarSdkSubset;
   }
   return StellarSdk;
 }
 
-export async function getRpcServer() {
+export async function getRpcServer(): Promise<RpcServer> {
   const { rpc } = await sdk();
   return new rpc.Server(RPC_URL);
 }
@@ -50,8 +119,7 @@ export async function fetchWasmFromRelease(
   const release = await releaseRes.json();
 
   const wasmFileName = `${contractName}.wasm`;
-  // deno-lint-ignore no-explicit-any
-  const asset = release.assets.find((a: any) => a.name === wasmFileName);
+  const asset = release.assets.find((a: { name: string }) => a.name === wasmFileName);
   if (!asset) {
     const available = release.assets.map((a: { name: string }) => a.name).join(", ");
     throw new Error(`WASM "${wasmFileName}" not found in release. Available: ${available}`);
@@ -89,12 +157,10 @@ export async function buildInstallWasmTx(
     .build();
 
   const sim = await server.simulateTransaction(tx);
-  if ("error" in sim) {
+  if ("error" in sim && sim.error) {
     throw new Error(`WASM install simulation failed: ${sim.error}`);
   }
   const prepared = stellar.rpc.assembleTransaction(tx, sim).build();
-
-  // Extract wasm hash from simulation result for later use
   const hashBuffer = stellar.hash(wasmBytes);
 
   return { xdr: prepared.toXDR(), wasmHash: hashBuffer };
@@ -130,7 +196,7 @@ export async function buildDeployContractTx(
             })
           ),
           executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(wasmHash)),
-          constructorArgs: (constructorArgs as xdr.ScVal[]),
+          constructorArgs,
         })
       ),
       auth: [],
@@ -139,7 +205,7 @@ export async function buildDeployContractTx(
     .build();
 
   const sim = await server.simulateTransaction(tx);
-  if ("error" in sim) {
+  if ("error" in sim && sim.error) {
     throw new Error(`Deploy simulation failed: ${sim.error}`);
   }
   const prepared = stellar.rpc.assembleTransaction(tx, sim).build();
@@ -172,7 +238,7 @@ export async function buildInvokeContractTx(
     .build();
 
   const sim = await server.simulateTransaction(tx);
-  if ("error" in sim) {
+  if ("error" in sim && sim.error) {
     throw new Error(`Simulation failed: ${sim.error}`);
   }
   const prepared = stellar.rpc.assembleTransaction(tx, sim).build();
@@ -213,8 +279,7 @@ export async function getAssetContractId(assetCode: string, assetIssuer?: string
   return asset.contractId(NETWORK_PASSPHRASE);
 }
 
-// deno-lint-ignore no-explicit-any
-async function waitForTx(server: any, hash: string, timeoutMs = 60000): Promise<any> {
+async function waitForTx(server: RpcServer, hash: string, timeoutMs = 60000): Promise<TxResult> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const status = await server.getTransaction(hash);
@@ -226,19 +291,26 @@ async function waitForTx(server: any, hash: string, timeoutMs = 60000): Promise<
   throw new Error(`Transaction ${hash} timed out`);
 }
 
-// deno-lint-ignore no-explicit-any
-function extractContractIdFromEvents(txResult: any): string | null {
+function extractContractIdFromEvents(txResult: TxResult): string | null {
   try {
+    // Try returnValue first (deploy returns the contract address)
+    const rv = txResult.returnValue;
+    if (rv) {
+      try {
+        const addr = rv.address();
+        if (addr) {
+          const contractBytes = addr.contractId();
+          return StellarSdk!.StrKey.encodeContract(contractBytes);
+        }
+      } catch { /* not an address return value */ }
+    }
+
     const meta = txResult.resultMetaXdr;
     if (!meta) return null;
-    const v3 = meta.v3();
-    const events = v3.sorobanMeta()?.events() ?? [];
+    const events = meta.v3().sorobanMeta()?.events() ?? [];
     for (const event of events) {
       const cId = event.contractId();
-      if (cId) {
-        const { StrKey } = StellarSdk;
-        return StrKey.encodeContract(cId);
-      }
+      if (cId) return StellarSdk!.StrKey.encodeContract(cId);
     }
     return null;
   } catch {

@@ -33,18 +33,19 @@ export function saveCouncils(councils: ManagedCouncil[]): void {
 
 export function addCouncil(council: ManagedCouncil): void {
   const councils = loadCouncils();
+  if (councils.some((c) => c.channelAuthId === council.channelAuthId)) return;
   councils.push(council);
   saveCouncils(councils);
 }
 
 export function updateCouncil(channelAuthId: string, update: Partial<ManagedCouncil>): void {
   const councils = loadCouncils();
-  const idx = councils.findIndex((q) => q.channelAuthId === channelAuthId);
+  const idx = councils.findIndex((c) => c.channelAuthId === channelAuthId);
   if (idx === -1) return;
   councils[idx] = { ...councils[idx], ...update };
   saveCouncils(councils);
 }
 
 export function getCouncil(channelAuthId: string): ManagedCouncil | undefined {
-  return loadCouncils().find((q) => q.channelAuthId === channelAuthId);
+  return loadCouncils().find((c) => c.channelAuthId === channelAuthId);
 }

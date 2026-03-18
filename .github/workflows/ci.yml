@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build
+        run: deno task build
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      stellar:
+        image: stellar/quickstart:latest
+        options: >-
+          --health-cmd "curl -sf http://localhost:8000/soroban/rpc -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}' | grep -q healthy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 30s
+        ports:
+          - 8000:8000
+        env:
+          NETWORK: local
+          LIMITS: unlimited
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Download contract WASMs from latest release
+        run: |
+          mkdir -p wasms
+          gh release download --repo Moonlight-Protocol/soroban-core --pattern "*.wasm" --dir wasms
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Wait for Friendbot
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:8000/friendbot?addr=GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF" > /dev/null 2>&1; then
+              echo "Friendbot ready"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then echo "Friendbot not ready"; exit 1; fi
+            sleep 5
+          done
+
+      - name: Run tests
+        env:
+          STELLAR_RPC_URL: http://localhost:8000/soroban/rpc
+          FRIENDBOT_URL: http://localhost:8000/friendbot
+          WASM_DIR: wasms
+        run: deno task test

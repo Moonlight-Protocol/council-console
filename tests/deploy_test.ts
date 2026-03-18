@@ -20,12 +20,15 @@ import { assertEquals, assertExists } from "jsr:@std/assert";
 import { resolve } from "jsr:@std/path";
 import { Buffer } from "buffer";
 
-const SOROBAN_CORE_PATH = Deno.env.get("SOROBAN_CORE_PATH")
-  ?? resolve(Deno.env.get("HOME") ?? "", "repos/soroban-core");
-
 const RPC_URL = Deno.env.get("STELLAR_RPC_URL") ?? "http://localhost:8000/soroban/rpc";
 const FRIENDBOT_URL = Deno.env.get("FRIENDBOT_URL") ?? "http://localhost:8000/friendbot";
 const NETWORK_PASSPHRASE = "Standalone Network ; February 2017";
+
+// WASM_DIR: directory with pre-built .wasm files (from GitHub releases)
+// Falls back to soroban-core build output for local dev
+const WASM_DIR = Deno.env.get("WASM_DIR");
+const SOROBAN_CORE_PATH = Deno.env.get("SOROBAN_CORE_PATH")
+  ?? resolve(Deno.env.get("HOME") ?? "", "repos/soroban-core");
 
 // deno-lint-ignore no-explicit-any
 let stellar: any;
@@ -47,19 +50,23 @@ async function fundAccount(publicKey: string) {
   if (!res.ok) throw new Error(`Friendbot failed: ${res.status}`);
 }
 
-async function loadWasm(contractDir: string): Promise<Uint8Array> {
-  const wasmPath = resolve(
-    SOROBAN_CORE_PATH,
-    "target/wasm32v1-none/release",
-    `${contractDir}.wasm`,
-  );
-  try {
-    return await Deno.readFile(wasmPath);
-  } catch {
-    throw new Error(
-      `WASM not found at ${wasmPath}. Run 'stellar contract build' in soroban-core first.`,
-    );
+async function loadWasm(contractName: string): Promise<Uint8Array> {
+  // Try WASM_DIR first (pre-built from GitHub releases), then soroban-core build output
+  const candidates = WASM_DIR
+    ? [resolve(WASM_DIR, `${contractName}.wasm`)]
+    : [
+        resolve(SOROBAN_CORE_PATH, "target/wasm32v1-none/release", `${contractName}.wasm`),
+      ];
+
+  for (const path of candidates) {
+    try {
+      return await Deno.readFile(path);
+    } catch { /* try next */ }
   }
+
+  throw new Error(
+    `WASM "${contractName}.wasm" not found. Set WASM_DIR to a directory with release WASMs, or build soroban-core locally.`,
+  );
 }
 
 // deno-lint-ignore no-explicit-any
