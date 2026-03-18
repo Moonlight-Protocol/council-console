@@ -30,8 +30,6 @@ jobs:
           --health-start-period 30s
         ports:
           - 8000:8000
-        env:
-          ENABLE_LOGS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -39,34 +37,27 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Install Stellar CLI
-        run: cargo install --locked stellar-cli
-
-      - name: Wait for Stellar network
+      - name: Download contract WASMs from latest release
         run: |
-          echo "Waiting for Friendbot..."
+          mkdir -p wasms
+          gh release download --repo Moonlight-Protocol/soroban-core --pattern "*.wasm" --dir wasms
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Wait for Friendbot
+        run: |
           for i in $(seq 1 60); do
             if curl -sf "http://localhost:8000/friendbot?addr=GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF" > /dev/null 2>&1; then
               echo "Friendbot ready"
               break
             fi
-            if [ "$i" -eq 60 ]; then echo "Friendbot not ready after 60 attempts"; exit 1; fi
+            if [ "$i" -eq 60 ]; then echo "Friendbot not ready"; exit 1; fi
             sleep 5
           done
-
-      - name: Build contracts
-        run: |
-          cd $HOME
-          git clone https://github.com/Moonlight-Protocol/soroban-core.git
-          cd soroban-core
-          stellar contract build --manifest-path contracts/channel-auth/Cargo.toml
-          stellar contract build --manifest-path contracts/privacy-channel/Cargo.toml
 
       - name: Run tests
         env:
           STELLAR_RPC_URL: http://localhost:8000/soroban/rpc
           FRIENDBOT_URL: http://localhost:8000/friendbot
-          SOROBAN_CORE_PATH: ${{ github.workspace }}/../soroban-core
-        run: |
-          export SOROBAN_CORE_PATH="$HOME/soroban-core"
-          deno task test
+          WASM_DIR: wasms
+        run: deno task test
