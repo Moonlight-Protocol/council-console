@@ -11,8 +11,11 @@ function renderContent(): HTMLElement {
     el.innerHTML = `
       <h2>Managed Councils</h2>
       <div class="empty-state">
-        <p>No councils found. Deploy your first Channel Auth + Privacy Channel contract pair.</p>
-        <button id="deploy-btn" class="btn-primary">Deploy New Council</button>
+        <p>No councils found. Deploy a new council or import an existing one.</p>
+        <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem">
+          <button id="deploy-btn" class="btn-primary">Deploy New</button>
+          <a href="#/import" class="btn-primary" style="background:var(--border);display:inline-block">Import Existing</a>
+        </div>
       </div>
     `;
     el.querySelector("#deploy-btn")?.addEventListener("click", () => navigate("/deploy"));
@@ -35,7 +38,10 @@ function renderContent(): HTMLElement {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center">
       <h2>Managed Councils</h2>
-      <button id="deploy-btn" class="btn-primary">Deploy New</button>
+      <div style="display:flex;gap:0.5rem">
+        <a href="#/import" class="btn-primary" style="background:var(--border);display:inline-block">Import</a>
+        <button id="deploy-btn" class="btn-primary">Deploy New</button>
+      </div>
     </div>
     <table>
       <thead>
