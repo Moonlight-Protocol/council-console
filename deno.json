@@ -1,5 +1,5 @@
 {
-  "version": "0.2.28",
+  "version": "0.1.0",
   "license": "MIT",
   "tasks": {
     "dev": "deno run --allow-all --watch src/server.ts",
