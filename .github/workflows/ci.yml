@@ -40,7 +40,7 @@ jobs:
           deno-version: v2.x
 
       - name: Install Stellar CLI
-        run: cargo install --locked stellar-cli --features opt
+        run: cargo install --locked stellar-cli
 
       - name: Wait for Stellar network
         run: |
