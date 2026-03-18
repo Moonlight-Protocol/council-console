@@ -7,7 +7,8 @@ import { startTrace, withSpan } from "../lib/tracer.ts";
 import { navigate } from "../lib/router.ts";
 
 async function isValidStellarAddress(address: string): Promise<boolean> {
-  const { StrKey } = await import("stellar-sdk");
+  const stellar = await import("../lib/stellar.ts");
+  const { StrKey } = await stellar.sdk();
   return StrKey.isValidEd25519PublicKey(address);
 }
 
