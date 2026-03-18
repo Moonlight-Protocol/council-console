@@ -89,7 +89,8 @@ function renderContent(): HTMLElement {
         <label>Provider Stellar Address</label>
         <input type="text" id="provider-address" placeholder="G..." />
       </div>
-      <button id="add-provider-btn" class="btn-primary" style="margin-bottom:1rem">Add Provider</button>
+      <button id="add-provider-btn" class="btn-primary" style="margin-bottom:1rem">Add On-Chain</button>
+      <button id="import-provider-btn" class="btn-primary" style="margin-bottom:1rem;background:var(--border)">Import Existing</button>
     </div>
     <p id="provider-status" class="hint-text" hidden></p>
     <p id="provider-error" class="error-text" hidden></p>
@@ -179,6 +180,33 @@ function renderContent(): HTMLElement {
       return;
     }
     executeProviderAction("add_provider", providerAddress);
+  });
+
+  // Import existing provider (add to local record without on-chain call)
+  el.querySelector("#import-provider-btn")?.addEventListener("click", async () => {
+    const addressInput = el.querySelector("#provider-address") as HTMLInputElement;
+    const providerAddress = addressInput.value.trim();
+    if (!providerAddress) {
+      errorEl.textContent = "Provider address is required";
+      errorEl.hidden = false;
+      return;
+    }
+    if (!(await isValidStellarAddress(providerAddress))) {
+      errorEl.textContent = "Invalid Stellar address";
+      errorEl.hidden = false;
+      return;
+    }
+    if (council.providers.includes(providerAddress)) {
+      errorEl.textContent = "Provider already in local record";
+      errorEl.hidden = false;
+      return;
+    }
+    errorEl.hidden = true;
+    updateCouncil(councilId, { providers: [...council.providers, providerAddress] });
+    capture("council_import_provider", { providerAddress, channelAuthId: councilId });
+    statusEl.textContent = `Provider ${truncateAddress(providerAddress)} added to local record`;
+    statusEl.hidden = false;
+    setTimeout(() => navigate(`/providers?council=${encodeURIComponent(councilId)}`, { force: true }), 1000);
   });
 
   el.querySelectorAll(".remove-provider").forEach((btn) => {
