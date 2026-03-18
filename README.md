@@ -34,19 +34,24 @@ Integration tests run against local infrastructure (Stellar standalone network v
 cd ~/repos/local-dev && ./up.sh
 
 # Run tests
-cd ~/repos/quorum-console && deno task test
+cd ~/repos/council-console && deno task test
 ```
 
 The test deploys Channel Auth + Privacy Channel contracts, adds a provider, verifies it, and removes it.
 
 ## Deployment
 
-Automated via GitHub Actions:
+Static files are deployed to a public [Tigris](https://www.tigrisdata.com/) bucket on Fly.io.
+
+- **Bucket**: `moonlight-council-console`
+- **URL**: https://moonlight-council-console.fly.storage.tigris.dev/index.html
+- **Auto-deploy**: push to `main` triggers the GitHub Actions workflow (`.github/workflows/deploy.yml`)
+- **Secrets** (set in GitHub repo settings): `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY`
+
+Pipeline:
 
 1. Push to `main` triggers `auto-version.yml` (bumps version, creates tag)
-2. Tag push triggers `deploy.yml` (builds, deploys to Tigris CDN)
-
-Static files hosted at: `https://moonlight-council-console.fly.storage.tigris.dev/`
+2. Tag push triggers `deploy.yml` (builds production bundle, deploys to Tigris)
 
 ### Manual deploy
 
