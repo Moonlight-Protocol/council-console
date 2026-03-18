@@ -30,6 +30,9 @@ jobs:
           --health-start-period 30s
         ports:
           - 8000:8000
+        env:
+          NETWORK: local
+          LIMITS: unlimited
     steps:
       - uses: actions/checkout@v4
 
