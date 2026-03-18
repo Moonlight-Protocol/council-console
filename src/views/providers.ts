@@ -4,6 +4,12 @@ import { escapeHtml, truncateAddress, renderError } from "../lib/dom.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
+import { navigate } from "../lib/router.ts";
+
+async function isValidStellarAddress(address: string): Promise<boolean> {
+  const { StrKey } = await import("stellar-sdk");
+  return StrKey.isValidEd25519PublicKey(address);
+}
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -29,12 +35,12 @@ function renderContent(): HTMLElement {
       <p style="color:var(--text-muted);margin-bottom:1rem">Select a council to manage its providers.</p>
       <table>
         <thead><tr><th>Label</th><th>Channel Auth</th><th>Providers</th><th></th></tr></thead>
-        <tbody>${councils.map((q) => `
+        <tbody>${councils.map((council) => `
           <tr>
-            <td>${escapeHtml(q.label || "Unnamed")}</td>
-            <td class="mono">${truncateAddress(q.channelAuthId)}</td>
-            <td>${q.providers.length}</td>
-            <td><a href="#/providers?council=${encodeURIComponent(q.channelAuthId)}" class="btn-link">Manage</a></td>
+            <td>${escapeHtml(council.label || "Unnamed")}</td>
+            <td class="mono">${truncateAddress(council.channelAuthId)}</td>
+            <td>${council.providers.length}</td>
+            <td><a href="#/providers?council=${encodeURIComponent(council.channelAuthId)}" class="btn-link">Manage</a></td>
           </tr>
         `).join("")}</tbody>
       </table>
@@ -146,8 +152,7 @@ function renderContent(): HTMLElement {
       statusEl.textContent = `Provider ${truncateAddress(providerAddress)} ${action === "add_provider" ? "added" : "removed"}`;
 
       setTimeout(() => {
-        window.location.hash = `#/providers?council=${encodeURIComponent(councilId)}&t=${Date.now()}`;
-        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        navigate(`/providers?council=${encodeURIComponent(councilId)}`, { force: true });
       }, 1500);
     } catch (error) {
       capture(`council_${action}_failed`, {
@@ -159,11 +164,16 @@ function renderContent(): HTMLElement {
     }
   }
 
-  el.querySelector("#add-provider-btn")?.addEventListener("click", () => {
+  el.querySelector("#add-provider-btn")?.addEventListener("click", async () => {
     const addressInput = el.querySelector("#provider-address") as HTMLInputElement;
     const providerAddress = addressInput.value.trim();
     if (!providerAddress) {
       errorEl.textContent = "Provider address is required";
+      errorEl.hidden = false;
+      return;
+    }
+    if (!(await isValidStellarAddress(providerAddress))) {
+      errorEl.textContent = "Invalid Stellar address";
       errorEl.hidden = false;
       return;
     }

@@ -2,6 +2,7 @@
  * Minimal hash-based router for SPA navigation.
  * Routes are defined as hash paths: #/login, #/deploy, #/providers, etc.
  */
+import { renderError } from "./dom.ts";
 
 type RouteHandler = () => HTMLElement | Promise<HTMLElement>;
 
@@ -12,13 +13,18 @@ export function route(path: string, handler: RouteHandler): void {
   routes.set(path, handler);
 }
 
-export function navigate(path: string): void {
-  window.location.hash = path;
+export function navigate(path: string, opts?: { force?: boolean }): void {
+  const current = window.location.hash.replace(/^#/, "");
+  if (opts?.force && current === path) {
+    render();
+  } else {
+    window.location.hash = path;
+  }
 }
 
 async function render(): Promise<void> {
   const hash = window.location.hash || "#/";
-  const path = hash.startsWith("#") ? hash.slice(1) : hash;
+  const path = hash.startsWith("#") ? hash.slice(1).split("?")[0] : hash.split("?")[0];
 
   const handler = routes.get(path) || routes.get("/404");
   if (!handler) return;
@@ -31,9 +37,21 @@ async function render(): Promise<void> {
   const app = document.getElementById("app");
   if (!app) return;
 
-  const element = await handler();
-  app.innerHTML = "";
-  app.appendChild(element);
+  try {
+    const element = await handler();
+    app.innerHTML = "";
+    app.appendChild(element);
+  } catch (error) {
+    app.innerHTML = "";
+    const container = document.createElement("main");
+    container.className = "container";
+    renderError(
+      container,
+      "Something went wrong",
+      error instanceof Error ? error.message : String(error),
+    );
+    app.appendChild(container);
+  }
 
   window.scrollTo(0, 0);
 }
