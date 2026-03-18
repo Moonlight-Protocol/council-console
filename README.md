@@ -50,8 +50,15 @@ Static files are deployed to a public [Tigris](https://www.tigrisdata.com/) buck
 
 Pipeline:
 
-1. Push to `main` triggers `auto-version.yml` (bumps version, creates tag)
-2. Tag push triggers `deploy.yml` (builds production bundle, deploys to Tigris)
+1. Push to `main` triggers `auto-version.yml` (bumps version in `deno.json`, creates git tag)
+2. Tag push (`v*`) triggers `deploy.yml` (builds production bundle, deploys to Tigris)
+
+Auto-version uses conventional commits to determine the bump type:
+- `feat:` or `feat(...):` merges bump the **minor** version
+- `feat!:` or `BREAKING CHANGE` bumps **major**
+- Everything else bumps **patch**
+
+The workflow skips commits starting with `chore: bump version` to prevent re-triggering itself. It uses a PAT (`AUTO_VERSION_TOKEN`) to bypass branch protection for the version bump commit.
 
 ### Manual deploy
 
