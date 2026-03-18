@@ -15,6 +15,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.AUTO_VERSION_TOKEN }}
+          persist-credentials: true
 
       - name: Determine version bump from commit message
         id: bump
