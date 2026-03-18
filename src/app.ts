@@ -7,6 +7,7 @@ import { OTEL_ENDPOINT } from "./lib/config.ts";
 import { loginView } from "./views/login.ts";
 import { councilsView } from "./views/councils.ts";
 import { deployView } from "./views/deploy.ts";
+import { importView } from "./views/import.ts";
 import { providersView } from "./views/providers.ts";
 
 initAnalytics();
@@ -15,6 +16,7 @@ initTracer({ endpoint: OTEL_ENDPOINT });
 route("/login", loginView);
 route("/councils", councilsView);
 route("/deploy", deployView);
+route("/import", importView);
 route("/providers", providersView);
 
 route("/", () => {
