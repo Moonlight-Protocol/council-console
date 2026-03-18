@@ -78,6 +78,10 @@ function renderContent(): HTMLElement {
       <input type="text" id="privacy-channel-id" placeholder="C..." autocomplete="off" />
     </div>
     <div class="form-group">
+      <label for="known-providers">Known Providers <span style="color:var(--text-muted)">(one address per line, optional)</span></label>
+      <textarea id="known-providers" rows="3" placeholder="GABC...&#10;GDEF..."></textarea>
+    </div>
+    <div class="form-group">
       <label for="council-label">Label <span style="color:var(--text-muted)">(optional)</span></label>
       <input type="text" id="council-label" placeholder="e.g. Testnet Council" />
     </div>
@@ -96,6 +100,10 @@ function renderContent(): HTMLElement {
     const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim() || "XLM";
     const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim() || undefined;
     const privacyChannelId = (el.querySelector("#privacy-channel-id") as HTMLInputElement).value.trim() || undefined;
+    const providersRaw = (el.querySelector("#known-providers") as HTMLTextAreaElement).value.trim();
+    const providers = providersRaw
+      ? providersRaw.split("\n").map((l) => l.trim()).filter((l) => l.length > 0)
+      : [];
     const label = (el.querySelector("#council-label") as HTMLInputElement).value.trim() || undefined;
 
     if (!channelAuthId) {
@@ -125,7 +133,7 @@ function renderContent(): HTMLElement {
         assetCode,
         assetIssuer,
         adminAddress,
-        providers: [],
+        providers,
         createdAt: new Date().toISOString(),
         label,
       });
