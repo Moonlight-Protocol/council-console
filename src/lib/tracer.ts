@@ -17,9 +17,10 @@ interface SpanData {
   status?: { code: number; message?: string };
 }
 
+const MAX_PENDING = 500;
+
 let enabled = false;
 let endpoint = "";
-let authHeader = "";
 const pendingSpans: SpanData[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -29,14 +30,10 @@ function randomHex(bytes: number): string {
   return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function initTracer(config: {
-  endpoint: string;
-  auth: string;
-}): void {
-  if (!config.endpoint || !config.auth) return;
+export function initTracer(config: { endpoint: string }): void {
+  if (!config.endpoint) return;
   enabled = true;
   endpoint = config.endpoint;
-  authHeader = config.auth;
   scheduleFlush();
 }
 
@@ -66,7 +63,10 @@ export function endSpan(
 ): void {
   span.endTimeUnixNano = String(Date.now() * 1_000_000);
   if (status) span.status = status;
-  if (enabled) pendingSpans.push(span);
+  if (enabled) {
+    pendingSpans.push(span);
+    if (pendingSpans.length > MAX_PENDING) pendingSpans.shift();
+  }
 }
 
 /**
@@ -143,15 +143,9 @@ async function flush(): Promise<void> {
   };
 
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (authHeader) {
-      headers["Authorization"] = authHeader;
-    }
     await fetch(`${endpoint}/v1/traces`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
   } catch (err) {

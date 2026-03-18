@@ -2,11 +2,9 @@
  * Stellar/Soroban helpers for contract deployment and invocation.
  * All transactions are built unsigned and signed via wallet (Freighter).
  */
-import { RPC_URL, HORIZON_URL, FRIENDBOT_URL, STELLAR_NETWORK } from "./config.ts";
+import { RPC_URL, HORIZON_URL, FRIENDBOT_URL, getNetworkPassphrase } from "./config.ts";
 
-const NETWORK_PASSPHRASE = STELLAR_NETWORK === "mainnet"
-  ? "Public Global Stellar Network ; September 2015"
-  : "Test SDF Network ; September 2015";
+const NETWORK_PASSPHRASE = getNetworkPassphrase();
 
 export { RPC_URL, HORIZON_URL, FRIENDBOT_URL, NETWORK_PASSPHRASE };
 

@@ -33,6 +33,7 @@ export function saveCouncils(councils: ManagedCouncil[]): void {
 
 export function addCouncil(council: ManagedCouncil): void {
   const councils = loadCouncils();
+  if (councils.some((c) => c.channelAuthId === council.channelAuthId)) return;
   councils.push(council);
   saveCouncils(councils);
 }

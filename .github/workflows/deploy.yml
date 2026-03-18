@@ -25,10 +25,7 @@ jobs:
             friendbotUrl: "https://friendbot.stellar.org",
             posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
             posthogHost: "https://us.i.posthog.com",
-            otel: {
-              endpoint: "${{ secrets.GRAFANA_OTLP_ENDPOINT }}",
-              auth: "${{ secrets.GRAFANA_OTLP_AUTH }}"
-            }
+            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
           };
           EOF
 
