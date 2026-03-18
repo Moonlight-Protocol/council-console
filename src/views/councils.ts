@@ -1,5 +1,5 @@
 import { page } from "../components/page.ts";
-import { loadCouncils } from "../lib/store.ts";
+import { loadCouncils, removeCouncil, updateCouncil } from "../lib/store.ts";
 import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { navigate } from "../lib/router.ts";
 
@@ -23,14 +23,15 @@ function renderContent(): HTMLElement {
   }
 
   const rows = councils.map((council) => `
-    <tr>
+    <tr data-council="${escapeHtml(council.channelAuthId)}">
       <td>${escapeHtml(council.label || "Unnamed")}</td>
       <td class="mono">${truncateAddress(council.channelAuthId)}</td>
-      <td class="mono">${council.privacyChannelId ? truncateAddress(council.privacyChannelId) : "<span class='badge badge-pending'>pending</span>"}</td>
+      <td class="mono">${council.privacyChannelId ? truncateAddress(council.privacyChannelId) : `<button class="btn-link set-privacy-channel" data-council="${escapeHtml(council.channelAuthId)}">Set</button>`}</td>
       <td>${escapeHtml(council.assetCode)}</td>
       <td>${council.providers.length}</td>
-      <td>
+      <td style="white-space:nowrap">
         <a href="#/providers?council=${encodeURIComponent(council.channelAuthId)}" class="btn-link">Manage</a>
+        <button class="btn-link remove-council" data-council="${escapeHtml(council.channelAuthId)}" style="color:var(--inactive)">Remove</button>
       </td>
     </tr>
   `).join("");
@@ -59,6 +60,30 @@ function renderContent(): HTMLElement {
   `;
 
   el.querySelector("#deploy-btn")?.addEventListener("click", () => navigate("/deploy"));
+
+  // Remove council
+  el.querySelectorAll(".remove-council").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const councilId = (btn as HTMLElement).dataset.council;
+      if (!councilId) return;
+      if (!confirm(`Remove council ${truncateAddress(councilId)} from this console? This only removes the local record, not the on-chain contract.`)) return;
+      removeCouncil(councilId);
+      navigate("/councils", { force: true });
+    });
+  });
+
+  // Set privacy channel ID
+  el.querySelectorAll(".set-privacy-channel").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const councilId = (btn as HTMLElement).dataset.council;
+      if (!councilId) return;
+      const privacyChannelId = prompt("Enter the Privacy Channel contract ID:");
+      if (!privacyChannelId?.trim()) return;
+      updateCouncil(councilId, { privacyChannelId: privacyChannelId.trim() });
+      navigate("/councils", { force: true });
+    });
+  });
+
   return el;
 }
 
