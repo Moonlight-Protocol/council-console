@@ -46,6 +46,11 @@ export function updateCouncil(channelAuthId: string, update: Partial<ManagedCoun
   saveCouncils(councils);
 }
 
+export function removeCouncil(channelAuthId: string): void {
+  const councils = loadCouncils().filter((c) => c.channelAuthId !== channelAuthId);
+  saveCouncils(councils);
+}
+
 export function getCouncil(channelAuthId: string): ManagedCouncil | undefined {
   return loadCouncils().find((c) => c.channelAuthId === channelAuthId);
 }
