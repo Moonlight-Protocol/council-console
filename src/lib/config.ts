@@ -10,6 +10,7 @@ declare global {
       rpcUrl?: string;
       horizonUrl?: string;
       friendbotUrl?: string;
+      platformUrl?: string;
       posthogKey?: string;
       posthogHost?: string;
       otelEndpoint?: string;
@@ -27,6 +28,7 @@ export const HORIZON_URL = config.horizonUrl ?? "https://horizon-testnet.stellar
 export const FRIENDBOT_URL = config.friendbotUrl ?? "https://friendbot.stellar.org";
 export const POSTHOG_KEY = config.posthogKey ?? "";
 export const POSTHOG_HOST = config.posthogHost ?? "https://us.i.posthog.com";
+export const PLATFORM_URL = config.platformUrl ?? "";
 export const OTEL_ENDPOINT = config.otelEndpoint ?? "";
 
 export function getNetworkPassphrase(): string {

@@ -13,6 +13,15 @@ export interface ManagedCouncil {
   providers: string[];
   createdAt: string;
   label?: string;
+  jurisdictions?: string[];
+  contactEmail?: string;
+  description?: string;
+  channels?: Array<{
+    contractId: string;
+    assetCode: string;
+    assetIssuer?: string;
+    assetContractId?: string;
+  }>;
 }
 
 const STORE_KEY = "council_console_councils";

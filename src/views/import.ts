@@ -54,7 +54,7 @@ function renderContent(): HTMLElement {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center">
       <h2>Import Existing Council</h2>
-      <a href="#/councils" class="btn-link">Back to Councils</a>
+      <a href="#/" class="btn-link">Back to Councils</a>
     </div>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
       Enter a Channel Auth contract ID to import an existing council.
@@ -141,7 +141,7 @@ function renderContent(): HTMLElement {
       capture("council_imported", { channelAuthId });
       statusEl.textContent = "Council imported successfully!";
 
-      setTimeout(() => navigate("/councils"), 1000);
+      setTimeout(() => navigate("/"), 1000);
     } catch (error) {
       errorEl.textContent = error instanceof Error ? error.message : "Import failed";
       errorEl.hidden = false;
