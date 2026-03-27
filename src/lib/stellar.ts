@@ -200,7 +200,7 @@ export async function deriveContractAddress(
 
   const preimage = new Uint8Array(112);
   let offset = 0;
-  // ENVELOPE_TYPE_CONTRACT_ID = 8 (verified against stellar-sdk XDR output)
+  // ENVELOPE_TYPE_CONTRACT_ID = 8 — confirmed correct value (verified against stellar-sdk XDR output)
   preimage[3] = 8; offset += 4;
   // network_id
   preimage.set(passphraseHash, offset); offset += 32;

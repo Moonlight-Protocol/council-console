@@ -51,6 +51,10 @@ export function getCountryName(code: string): string {
   return COUNTRIES[code]?.name ?? code;
 }
 
+function escapeXml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 /**
  * Build an SVG string showing the world map with jurisdiction pins.
  */
@@ -82,8 +86,8 @@ export async function renderJurisdictionMap(jurisdictions: string[]): Promise<st
     const isHighlighted = codes.has(id);
     const fill = isHighlighted ? HIGHLIGHT : BASE;
     const name = id ? getCountryName(id.toUpperCase()) : "";
-    const title = name ? `<title>${name}</title>` : "";
-    const dataAttr = id ? ` data-country="${id.toUpperCase()}"` : "";
+    const title = name ? `<title>${escapeXml(name)}</title>` : "";
+    const dataAttr = id ? ` data-country="${escapeXml(id.toUpperCase())}"` : "";
     return `<path${attrs} fill="${fill}" stroke="${STROKE}" stroke-width="0.5" style="cursor:pointer"${dataAttr}>${title}</path>`;
   });
 
@@ -99,8 +103,8 @@ export async function renderJurisdictionMap(jurisdictions: string[]): Promise<st
       if (isHighlighted) {
         processed = processed.replace(new RegExp(`fill="${BASE}"`, "g"), `fill="${HIGHLIGHT}"`);
       }
-      return `${open.replace(/>$/, ` data-country="${code}" style="cursor:pointer">`)}` +
-        `<title>${name}</title>${processed}${close}`;
+      return `${open.replace(/>$/, ` data-country="${escapeXml(code)}" style="cursor:pointer">`)}` +
+        `<title>${escapeXml(name)}</title>${processed}${close}`;
     },
   );
 
