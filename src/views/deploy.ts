@@ -5,6 +5,9 @@ import { getConnectedAddress } from "../lib/wallet.ts";
 import { escapeHtml } from "../lib/dom.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
+import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
+import { STELLAR_NETWORK, FRIENDBOT_URL } from "../lib/config.ts";
+import { isPlatformConfigured, authenticate, pushMetadata, addJurisdiction, registerChannel } from "../lib/platform.ts";
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -23,11 +26,46 @@ function renderContent(): HTMLElement {
           <span class="stat-label">Admin</span>
           <span class="stat-value mono" style="font-size:0.7rem">${escapeHtml(adminAddress || "Not connected")}</span>
         </div>
+        <div class="stat-card" id="balance-card">
+          <span class="stat-label">XLM Balance</span>
+          <span id="balance-value" class="stat-value" style="font-size:1rem;color:var(--text-muted)">Loading...</span>
+        </div>
+      </div>
+
+      <div id="balance-warning" class="balance-warning" hidden>
+        <strong>Insufficient funds.</strong> You need at least ~20 XLM to cover contract deployment fees.
+        Fund this address:
+        <span class="mono" style="font-size:0.75rem;word-break:break-all">${escapeHtml(adminAddress || "")}</span>
+        ${(STELLAR_NETWORK === "testnet" || STELLAR_NETWORK === "standalone")
+          ? `<br><a href="${escapeHtml(FRIENDBOT_URL)}?addr=${escapeHtml(adminAddress || "")}" target="_blank" rel="noopener" style="color:var(--primary)">Fund via Friendbot</a>`
+          : ""}
       </div>
 
       <div class="form-group">
         <label>Council Label (optional)</label>
         <input type="text" id="council-label" placeholder="e.g. Moonlight Beta" />
+      </div>
+
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="council-description" rows="3" maxlength="500"
+          placeholder="Brief description of this council's purpose"
+          style="width:100%;padding:0.6rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.875rem;font-family:var(--font-sans);resize:vertical"></textarea>
+        <p class="hint-text" style="margin-top:0.25rem">Max 500 characters.</p>
+      </div>
+
+      <div class="form-group">
+        <label>Contact Email (optional)</label>
+        <input type="email" id="council-email" placeholder="admin@example.com" />
+      </div>
+
+      <div class="form-group">
+        <label>Jurisdictions (optional)</label>
+        <div id="jurisdiction-tags" class="jurisdiction-tags"></div>
+        <div class="jurisdiction-picker">
+          <input type="text" id="jurisdiction-filter" placeholder="Search countries..." style="border:none;border-bottom:1px solid var(--border);border-radius:0;position:sticky;top:0;background:var(--bg);z-index:1" />
+          <div id="jurisdiction-list" class="jurisdiction-list"></div>
+        </div>
       </div>
 
       <div class="form-row">
@@ -55,6 +93,7 @@ function renderContent(): HTMLElement {
         <div id="step-deploy-auth" class="deploy-step">Deploy Channel Auth</div>
         <div id="step-install-channel" class="deploy-step">Install Privacy Channel WASM</div>
         <div id="step-deploy-channel" class="deploy-step">Deploy Privacy Channel</div>
+        <div id="step-platform" class="deploy-step" ${isPlatformConfigured() ? '' : 'hidden'}>Register with council platform</div>
       </div>
 
       <p id="deploy-error" class="error-text" hidden></p>
@@ -71,11 +110,100 @@ function renderContent(): HTMLElement {
             <span id="result-channel-id" class="stat-value mono" style="font-size:0.8rem"></span>
           </div>
         </div>
-        <button id="goto-providers" class="btn-primary">Add Privacy Providers</button>
+        <div style="display:flex;gap:0.75rem">
+          <button id="goto-council" class="btn-primary">View Council</button>
+          <button id="goto-providers" class="btn-primary" style="background:var(--border)">Add Privacy Providers</button>
+        </div>
       </div>
     </div>
   `;
 
+  // --- Balance check ---
+  if (adminAddress) {
+    import("../lib/stellar.ts").then(({ getAccountBalance }) => {
+      getAccountBalance(adminAddress).then(({ xlm, funded }) => {
+        const balanceEl = el.querySelector("#balance-value") as HTMLElement;
+        const warningEl = el.querySelector("#balance-warning") as HTMLDivElement;
+        const cardEl = el.querySelector("#balance-card") as HTMLDivElement;
+
+        if (!funded) {
+          balanceEl.textContent = "Not funded";
+          balanceEl.style.color = "var(--inactive)";
+          warningEl.hidden = false;
+        } else {
+          const balance = parseFloat(xlm);
+          balanceEl.textContent = `${balance.toFixed(2)} XLM`;
+          if (balance < 20) {
+            balanceEl.style.color = "var(--pending)";
+            cardEl.classList.add("pending");
+            warningEl.hidden = false;
+          } else {
+            balanceEl.style.color = "var(--active)";
+            cardEl.classList.add("active");
+          }
+        }
+      });
+    });
+  }
+
+  // --- Jurisdiction picker ---
+  const selectedJurisdictions = new Set<string>();
+  const tagsEl = el.querySelector("#jurisdiction-tags") as HTMLDivElement;
+  const listEl = el.querySelector("#jurisdiction-list") as HTMLDivElement;
+  const filterEl = el.querySelector("#jurisdiction-filter") as HTMLInputElement;
+
+  function renderJurisdictionTags() {
+    tagsEl.innerHTML = "";
+    for (const code of selectedJurisdictions) {
+      const entry = COUNTRY_CODES.find((c) => c.code === code);
+      if (!entry) continue;
+      const tag = document.createElement("span");
+      tag.className = "jurisdiction-tag";
+      tag.textContent = `${entry.code} `;
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "\u00d7";
+      removeBtn.style.cssText = "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
+      removeBtn.addEventListener("click", () => {
+        selectedJurisdictions.delete(code);
+        renderJurisdictionTags();
+        renderJurisdictionList(filterEl.value);
+      });
+      tag.appendChild(removeBtn);
+      tagsEl.appendChild(tag);
+    }
+  }
+
+  function renderJurisdictionList(filter: string) {
+    listEl.innerHTML = "";
+    const query = filter.toLowerCase();
+    const filtered = COUNTRY_CODES.filter(
+      (c) => c.label.toLowerCase().includes(query) || c.code.toLowerCase().includes(query),
+    );
+    for (const country of filtered) {
+      const label = document.createElement("label");
+      label.className = "jurisdiction-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = country.code;
+      checkbox.checked = selectedJurisdictions.has(country.code);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selectedJurisdictions.add(country.code);
+        } else {
+          selectedJurisdictions.delete(country.code);
+        }
+        renderJurisdictionTags();
+      });
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(` ${country.code} \u2014 ${country.label}`));
+      listEl.appendChild(label);
+    }
+  }
+
+  renderJurisdictionList("");
+  filterEl.addEventListener("input", () => renderJurisdictionList(filterEl.value));
+
+  // --- Deploy handler ---
   const btn = el.querySelector("#deploy-btn") as HTMLButtonElement;
   const stepsEl = el.querySelector("#deploy-steps") as HTMLDivElement;
   const errorEl = el.querySelector("#deploy-error") as HTMLParagraphElement;
@@ -102,6 +230,9 @@ function renderContent(): HTMLElement {
 
     try {
       const label = (el.querySelector("#council-label") as HTMLInputElement).value.trim();
+      const description = (el.querySelector("#council-description") as HTMLTextAreaElement).value.trim();
+      const contactEmail = (el.querySelector("#council-email") as HTMLInputElement).value.trim();
+      const jurisdictions = Array.from(selectedJurisdictions);
       const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim();
       const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim();
       const releaseVersion = (el.querySelector("#release-version") as HTMLInputElement).value.trim() || "latest";
@@ -112,9 +243,9 @@ function renderContent(): HTMLElement {
         buildDeployContractTx,
         submitTx,
         getAssetContractId,
+        sdk: getSdk,
       } = await import("../lib/stellar.ts");
-      const stellar = await import("stellar-sdk");
-      const { nativeToScVal, Address } = stellar;
+      const { nativeToScVal, Address } = await getSdk();
       const { signTransaction } = await import("../lib/wallet.ts");
 
       // 1. Fetch WASMs
@@ -190,7 +321,40 @@ function renderContent(): HTMLElement {
         providers: [],
         createdAt: new Date().toISOString(),
         label: label || undefined,
+        jurisdictions: jurisdictions.length > 0 ? jurisdictions : undefined,
+        contactEmail: contactEmail || undefined,
+        description: description || undefined,
       });
+
+      // 7. Push to platform (best-effort)
+      if (isPlatformConfigured()) {
+        setStep("step-platform", "active");
+        try {
+          await withSpan("deploy.platform_push", traceId, async () => {
+            await authenticate();
+            await pushMetadata({
+              name: label || "Unnamed Council",
+              description: description || undefined,
+              contactEmail: contactEmail || undefined,
+            });
+            for (const code of jurisdictions) {
+              const entry = COUNTRY_CODES.find((c) => c.code === code);
+              await addJurisdiction(code, entry?.label);
+            }
+            const assetContractId = await getAssetContractId(assetCode, assetIssuer || undefined);
+            await registerChannel({
+              channelContractId: privacyChannelId,
+              assetCode,
+              assetContractId,
+              label: `${assetCode} Privacy Channel`,
+            });
+          });
+          setStep("step-platform", "done");
+        } catch (err) {
+          setStep("step-platform", "error");
+          console.warn("Platform registration failed:", err);
+        }
+      }
 
       capture("council_deploy_complete", {
         channelAuthId,
@@ -204,6 +368,9 @@ function renderContent(): HTMLElement {
       (el.querySelector("#result-auth-id") as HTMLElement).textContent = channelAuthId;
       (el.querySelector("#result-channel-id") as HTMLElement).textContent = privacyChannelId;
 
+      el.querySelector("#goto-council")?.addEventListener("click", () => {
+        navigate(`/council?id=${encodeURIComponent(channelAuthId)}`);
+      });
       el.querySelector("#goto-providers")?.addEventListener("click", () => {
         navigate(`/providers?council=${encodeURIComponent(channelAuthId)}`);
       });

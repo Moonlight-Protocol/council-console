@@ -76,6 +76,46 @@ export function connectWallet(): Promise<string> {
 }
 
 /**
+ * The StellarWalletsKit v1.x types don't include signMessage, but the
+ * runtime implementation exposes it (delegates to the active module's
+ * SEP-43 signMessage). This interface extends the kit with the method
+ * signature matching the v2.x ModuleInterface contract.
+ * See: https://github.com/Creit-Tech/Stellar-Wallets-Kit/blob/main/src/types/mod.ts
+ */
+interface WalletKitWithSignMessage {
+  signMessage(
+    message: string,
+    opts: { address: string; networkPassphrase: string },
+  ): Promise<SignMessageResult>;
+}
+
+interface SignMessageResult {
+  signedMessage: string;
+  signerAddress?: string;
+  error?: string;
+}
+
+/**
+ * Sign an arbitrary message with the connected wallet (SEP-53).
+ * Used for challenge-response authentication with the council platform.
+ */
+export async function signMessage(message: string): Promise<string> {
+  const walletKit = getKit() as unknown as WalletKitWithSignMessage;
+  const address = getConnectedAddress();
+  if (!address) throw new Error("Wallet not connected");
+
+  const result = await walletKit.signMessage(message, {
+    address,
+    networkPassphrase: getNetworkPassphrase(),
+  });
+
+  if (result.error) throw new Error(result.error);
+  if (typeof result.signedMessage === "string") return result.signedMessage;
+
+  throw new Error("Unexpected signMessage response");
+}
+
+/**
  * Sign a transaction XDR with the connected wallet.
  */
 export async function signTransaction(xdr: string): Promise<string> {

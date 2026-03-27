@@ -14,11 +14,28 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 function getCSP(): string {
+  const connectSrc = [
+    "'self'",
+    "https://soroban-testnet.stellar.org",
+    "https://horizon-testnet.stellar.org",
+    "https://friendbot.stellar.org",
+    "https://api.github.com",
+    "https://esm.sh",
+    "https://cdn.esm.sh",
+    "https://us.i.posthog.com",
+    "https://otlp-gateway-prod-ca-east-0.grafana.net",
+  ];
+
+  // In development, allow connections to local services (Stellar RPC, council-platform, etc.)
+  if (Deno.env.get("MODE") === "development") {
+    connectSrc.push("http://localhost:*");
+  }
+
   return [
     "default-src 'self'",
-    "script-src 'self' https://us-assets.i.posthog.com",
-    "style-src 'self'",
-    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org https://friendbot.stellar.org https://api.github.com https://us.i.posthog.com https://otlp-gateway-prod-ca-east-0.grafana.net",
+    "script-src 'self' https://us-assets.i.posthog.com https://esm.sh https://cdn.esm.sh",
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src ${connectSrc.join(" ")}`,
   ].join("; ");
 }
 
@@ -50,6 +67,7 @@ const contentTypes: Record<string, string> = {
   svg: "image/svg+xml",
   png: "image/png",
   ico: "image/x-icon",
+  wasm: "application/wasm",
 };
 
 Deno.serve({ port: PORT }, async (req) => {

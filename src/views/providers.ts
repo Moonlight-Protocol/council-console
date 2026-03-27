@@ -1,5 +1,5 @@
 import { page } from "../components/page.ts";
-import { getCouncil, updateCouncil, loadCouncils } from "../lib/store.ts";
+import { fetchCouncilState } from "../lib/onboarding.ts";
 import { escapeHtml, truncateAddress, renderError } from "../lib/dom.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
@@ -69,7 +69,7 @@ function renderContent(): HTMLElement {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center">
       <h2>Providers for ${escapeHtml(council.label || truncateAddress(councilId))}</h2>
-      <a href="#/councils" class="btn-link">Back to Councils</a>
+      <a href="#/" class="btn-link">Back to Councils</a>
     </div>
 
     <div class="stats-row">
@@ -122,9 +122,8 @@ function renderContent(): HTMLElement {
 
     try {
       await withSpan(`provider.${action}`, traceId, async () => {
-        const { buildInvokeContractTx, submitTx } = await import("../lib/stellar.ts");
-        const stellar = await import("stellar-sdk");
-        const { nativeToScVal, Address } = stellar;
+        const { buildInvokeContractTx, submitTx, sdk: getSdk } = await import("../lib/stellar.ts");
+        const { nativeToScVal, Address } = await getSdk();
         const { signTransaction } = await import("../lib/wallet.ts");
 
         const txXdr = await buildInvokeContractTx(

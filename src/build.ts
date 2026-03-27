@@ -9,6 +9,49 @@ const isProduction = Deno.args.includes("--production");
 const denoJson = JSON.parse(await Deno.readTextFile("deno.json"));
 const version = denoJson.version ?? "0.0.0";
 
+// Download contract WASMs from soroban-core GitHub release at build time
+const WASM_DIR = "public/wasm";
+const WASM_FILES = ["channel_auth_contract.wasm", "privacy_channel.wasm"];
+const WASM_VERSION = Deno.env.get("SOROBAN_CORE_VERSION") || "latest";
+
+async function downloadWasms() {
+  try {
+    await Deno.mkdir(WASM_DIR, { recursive: true });
+  } catch { /* exists */ }
+
+  // Check if already downloaded
+  const allExist = (await Promise.all(
+    WASM_FILES.map(async (f) => {
+      try { await Deno.stat(`${WASM_DIR}/${f}`); return true; } catch { return false; }
+    }),
+  )).every(Boolean);
+
+  if (allExist) {
+    console.log("Contract WASMs already present, skipping download.");
+    return;
+  }
+
+  const baseUrl = "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
+  const releaseUrl = WASM_VERSION === "latest" ? `${baseUrl}/latest` : `${baseUrl}/tags/${WASM_VERSION}`;
+
+  console.log(`Fetching contract WASMs from soroban-core ${WASM_VERSION}...`);
+  const releaseRes = await fetch(releaseUrl);
+  if (!releaseRes.ok) throw new Error(`Failed to fetch release: ${releaseRes.status}`);
+  const release = await releaseRes.json();
+
+  for (const name of WASM_FILES) {
+    const asset = release.assets.find((a: { name: string }) => a.name === name);
+    if (!asset) throw new Error(`WASM "${name}" not found in release`);
+    const res = await fetch(asset.browser_download_url);
+    if (!res.ok) throw new Error(`Failed to download ${name}: ${res.status}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    await Deno.writeFile(`${WASM_DIR}/${name}`, bytes);
+    console.log(`  ${name} (${bytes.length} bytes)`);
+  }
+}
+
+await downloadWasms();
+
 await esbuild.build({
   entryPoints: ["src/app.ts"],
   bundle: true,
@@ -20,6 +63,7 @@ await esbuild.build({
   sourcemap: !isProduction,
   define: { "__APP_VERSION__": JSON.stringify(version) },
   inject: ["src/shims/buffer.ts"],
+  treeShaking: false,
   plugins: [...denoPlugins({ configPath: `${Deno.cwd()}/deno.json` })],
 });
 
