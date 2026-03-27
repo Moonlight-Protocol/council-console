@@ -74,32 +74,35 @@ export async function renderJurisdictionMap(jurisdictions: string[]): Promise<st
   svgContent = svgContent.replace(/<title>[^<]*<\/title>/g, "");
   svgContent = svgContent.replace(/<desc>[\s\S]*?<\/desc>/g, "");
 
-  // Replace every <path> fill inline based on whether its parent or itself is a jurisdiction
-  // We process the SVG as text — find each path's id (or its parent g's id) and decide the color
-  svgContent = svgContent.replace(/<path([^>]*)\/>/g, (match, attrs) => {
+  // Replace every <path> — all countries get hover title and click handler,
+  // jurisdictions are highlighted
+  svgContent = svgContent.replace(/<path([^>]*)\/>/g, (_match, attrs) => {
     const idMatch = attrs.match(/id="([^"]+)"/);
     const id = idMatch ? idMatch[1] : "";
     const isHighlighted = codes.has(id);
     const fill = isHighlighted ? HIGHLIGHT : BASE;
-    const extra = isHighlighted ? ` style="cursor:pointer"><title>${getCountryName(id.toUpperCase())}</title></path>` : "/>";
-    return `<path${attrs} fill="${fill}" stroke="${STROKE}" stroke-width="0.5"${extra}`;
+    const name = id ? getCountryName(id.toUpperCase()) : "";
+    const title = name ? `<title>${name}</title>` : "";
+    const dataAttr = id ? ` data-country="${id.toUpperCase()}"` : "";
+    return `<path${attrs} fill="${fill}" stroke="${STROKE}" stroke-width="0.5" style="cursor:pointer"${dataAttr}>${title}</path>`;
   });
 
-  // For paths inside <g> groups: check if the group id is a jurisdiction
-  for (const code of codes) {
-    svgContent = svgContent.replace(
-      new RegExp(`(<g[^>]*id="${code}"[^>]*>)([\\s\\S]*?)(</g>)`, "gi"),
-      (_match, open, inner, close) => {
-        const name = getCountryName(code.toUpperCase());
-        // Replace fill on all child paths
-        const highlighted = inner.replace(
-          new RegExp(`fill="${BASE}"`, "g"),
-          `fill="${HIGHLIGHT}"`,
-        );
-        return `${open}<title>${name}</title>${highlighted}${close}`;
-      },
-    );
-  }
+  // For ALL <g> groups with an id: add data-country, title, and cursor
+  // For jurisdiction groups: also highlight child paths
+  svgContent = svgContent.replace(
+    /(<g\s+id="([^"]+)"[^>]*>)([\s\S]*?)(<\/g>)/gi,
+    (_match, open, id, inner, close) => {
+      const code = id.toUpperCase();
+      const name = getCountryName(code);
+      const isHighlighted = codes.has(id.toLowerCase());
+      let processed = inner;
+      if (isHighlighted) {
+        processed = processed.replace(new RegExp(`fill="${BASE}"`, "g"), `fill="${HIGHLIGHT}"`);
+      }
+      return `${open.replace(/>$/, ` data-country="${code}" style="cursor:pointer">`)}` +
+        `<title>${name}</title>${processed}${close}`;
+    },
+  );
 
   return `<svg viewBox="30.767 241.591 784.077 458.627" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
     ${svgContent}

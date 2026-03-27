@@ -19,15 +19,15 @@ function renderStep(): HTMLElement {
     </div>
 
     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem">
-      Providers who visit this link can submit a request to join. You'll review and approve them from the dashboard.
+      Providers who visit this link can submit a request to join. You'll review and approve them from the council page.
     </p>
 
     <div style="background:rgba(34,197,94,0.08);border:1px solid var(--active);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
       <p style="color:var(--active);font-weight:600;margin-bottom:0.25rem">You're all set</p>
-      <p style="font-size:0.85rem;color:var(--text-muted)">Manage your council, enable more assets, and review provider requests from the dashboard.</p>
+      <p style="font-size:0.85rem;color:var(--text-muted)">Manage your council, enable more assets, and review provider requests from the council page.</p>
     </div>
 
-    <button id="done-btn" class="btn-primary btn-wide">Go to Dashboard</button>
+    <button id="done-btn" class="btn-primary btn-wide">Done</button>
   `;
 
   const linkInput = el.querySelector("#invite-link") as HTMLInputElement;

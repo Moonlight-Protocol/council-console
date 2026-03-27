@@ -83,6 +83,7 @@ export async function pushMetadata(data: {
   name: string;
   description?: string;
   contactEmail?: string;
+  channelAuthId?: string;
 }): Promise<void> {
   const res = await platformFetch("/api/v1/council/metadata", {
     method: "PUT",
@@ -104,11 +105,20 @@ export async function addJurisdiction(countryCode: string, label?: string): Prom
   }
 }
 
+/** Remove a jurisdiction from the platform. */
+export async function removeJurisdiction(countryCode: string): Promise<void> {
+  const res = await platformFetch(`/api/v1/council/jurisdictions/${encodeURIComponent(countryCode)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Failed to remove jurisdiction: ${res.status}`);
+}
+
 /** Register a channel with the platform. Ignores 409 (already exists). */
 export async function registerChannel(data: {
   channelContractId: string;
   assetCode: string;
   assetContractId?: string;
+  issuerAddress?: string;
   label?: string;
 }): Promise<void> {
   const res = await platformFetch("/api/v1/council/channels", {
@@ -118,6 +128,15 @@ export async function registerChannel(data: {
   if (!res.ok && res.status !== 409) {
     throw new Error(`Failed to register channel: ${res.status}`);
   }
+}
+
+/** Fetch all known assets (public, no auth needed). */
+export async function listKnownAssets(): Promise<Array<{ assetCode: string; issuerAddress: string }>> {
+  if (!PLATFORM_URL) return [];
+  const res = await fetch(`${PLATFORM_URL}/api/v1/public/known-assets`);
+  if (!res.ok) return [];
+  const { data } = await res.json();
+  return data;
 }
 
 /** Delete the council and all related data from the platform. */

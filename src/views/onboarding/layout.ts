@@ -1,6 +1,6 @@
 /**
  * Shared onboarding layout with progress stepper.
- * Uses a minimal nav (no dashboard/providers/requests links).
+ * Shared onboarding layout — uses the same nav as the main app.
  */
 import { isAuthenticated } from "../../lib/wallet.ts";
 import { navigate } from "../../lib/router.ts";

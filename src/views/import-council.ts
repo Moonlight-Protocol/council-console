@@ -13,11 +13,11 @@ import { capture } from "../lib/analytics.ts";
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
 
+  el.style.maxWidth = "600px";
+  el.style.margin = "0 auto";
+
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h2>Import Council</h2>
-      <a href="#/" class="btn-link">Back to Dashboard</a>
-    </div>
+    <h2>Import Council</h2>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
       Enter your Channel Auth contract address to import an existing council.
     </p>
@@ -233,58 +233,66 @@ function renderContent(): HTMLElement {
     importError.hidden = true;
 
     try {
-      // Derive the XLM Privacy Channel address deterministically.
-      // Contract address = SHA-256(ENVELOPE_TYPE_CONTRACT_ID + network_id + deployer + salt)
-      // The WASM hash is NOT part of the derivation — address depends only on deployer + salt.
-      const { computeDeploySalt, deriveContractAddress, sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
+      // Discover channels by deriving addresses for all known assets
+      const { computeDeploySalt, deriveContractAddress, getAssetContractId, sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
+      const { listKnownAssets, registerChannel } = await import("../lib/platform.ts");
       const stellar = await getSdk();
       const server = await getRpcServer();
       const { getNetworkPassphrase } = await import("../lib/config.ts");
 
-      const xlmSalt = await computeDeploySalt(verifiedContractId, "XLM");
-      const derivedAddress = await deriveContractAddress(adminAddress, xlmSalt);
+      // Always check XLM (native, no issuer) + all known assets from the DB
+      const knownAssets = await listKnownAssets();
+      const assetsToCheck = [{ assetCode: "XLM", issuerAddress: "" }, ...knownAssets];
+      // Deduplicate
+      const seen = new Set<string>();
+      const uniqueAssets = assetsToCheck.filter((a) => {
+        const key = `${a.assetCode}:${a.issuerAddress}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-      // Verify the derived address exists on-chain
-      let xlmChannelId: string | null = null;
-      try {
-        const contract = new stellar.Contract(derivedAddress);
-        const account = await server.getAccount(adminAddress);
-        const tx = new stellar.TransactionBuilder(account, { fee: "100", networkPassphrase: getNetworkPassphrase() })
-          .addOperation(contract.call("auth"))
-          .setTimeout(30)
-          .build();
-        const sim = await server.simulateTransaction(tx);
-        if (!("error" in sim && sim.error)) {
-          xlmChannelId = derivedAddress;
-        }
-      } catch {
-        // Channel not found at derived address
+      const discoveredChannels: Array<{ contractId: string; assetCode: string; issuerAddress: string }> = [];
+
+      for (const asset of uniqueAssets) {
+        try {
+          const salt = await computeDeploySalt(verifiedContractId, asset.assetCode, asset.issuerAddress);
+          const derivedAddress = await deriveContractAddress(adminAddress, salt);
+          const contract = new stellar.Contract(derivedAddress);
+          const account = await server.getAccount(adminAddress);
+          const tx = new stellar.TransactionBuilder(account, { fee: "100", networkPassphrase: getNetworkPassphrase() })
+            .addOperation(contract.call("auth"))
+            .setTimeout(30)
+            .build();
+          const sim = await server.simulateTransaction(tx);
+          if (!("error" in sim && sim.error)) {
+            discoveredChannels.push({ contractId: derivedAddress, assetCode: asset.assetCode, issuerAddress: asset.issuerAddress });
+          }
+        } catch { /* not found */ }
       }
 
-      importBtn.textContent = "Registering with platform...";
+      importBtn.textContent = `Found ${discoveredChannels.length} asset${discoveredChannels.length !== 1 ? "s" : ""}. Registering...`;
 
-      // Push to platform DB (the source of truth)
+      // Push to platform DB
       if (isPlatformConfigured()) {
         try {
-          await pushMetadata({ name, description: description || undefined, contactEmail: contactEmail || undefined });
+          await pushMetadata({ name, description: description || undefined, contactEmail: contactEmail || undefined, channelAuthId: verifiedContractId });
           for (const code of jurisdictions) {
             const entry = COUNTRY_CODES.find((c) => c.code === code);
             await addJurisdiction(code, entry?.label);
           }
-          // Register the XLM channel if found
-          if (xlmChannelId) {
-            const { getAssetContractId } = await import("../lib/stellar.ts");
-            const assetContractId = await getAssetContractId("XLM");
-            const { registerChannel } = await import("../lib/platform.ts");
+          for (const ch of discoveredChannels) {
+            const sacId = await getAssetContractId(ch.assetCode, ch.issuerAddress || undefined);
             await registerChannel({
-              channelContractId: xlmChannelId,
-              assetCode: "XLM",
-              assetContractId,
-              label: "XLM Privacy Channel",
+              channelContractId: ch.contractId,
+              assetCode: ch.assetCode,
+              assetContractId: sacId,
+              issuerAddress: ch.issuerAddress,
+              label: `${ch.assetCode} Privacy Channel`,
             });
           }
         } catch (err) {
-          importError.textContent = "Council imported but platform registration failed. Try again from the dashboard.";
+          importError.textContent = "Council imported but platform registration failed. Please try again.";
           importError.hidden = false;
           importBtn.disabled = false;
           importBtn.textContent = "Import Council";

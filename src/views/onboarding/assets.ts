@@ -24,12 +24,8 @@ function renderStep(): HTMLElement {
       Each asset requires <strong>2 wallet signatures</strong>.
     </p>
 
-    <div class="stat-card" style="margin-bottom:1rem;opacity:0.5">
-      <div style="display:flex;align-items:center;gap:0.75rem">
-        <input type="checkbox" checked disabled />
-        <strong>XLM</strong>
-        <span style="color:var(--text-muted);font-size:0.85rem">Stellar Lumens (included)</span>
-      </div>
+    <div id="asset-list" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem">
+      <span class="asset-badge" style="opacity:0.5">XLM</span>
     </div>
 
     <div class="form-row" style="margin-bottom:0.5rem">
@@ -84,11 +80,13 @@ function renderStep(): HTMLElement {
     addBtn.disabled = true;
     continueBtn.hidden = true;
     assetErrorEl.hidden = true;
+    // Clear previous failed steps
+    stepsEl.querySelectorAll(".deploy-step-error").forEach((s) => s.remove());
     progressEl.hidden = false;
 
     const stepEl = document.createElement("div");
     stepEl.className = "deploy-step deploy-step-active";
-    stepEl.textContent = `Enabling ${assetCode}...`;
+    stepEl.textContent = `Enabling ${assetCode} (1/2)...`;
     stepsEl.appendChild(stepEl);
 
     const { traceId } = startTrace();
@@ -115,6 +113,8 @@ function renderStep(): HTMLElement {
         const installSigned = await signTransaction(installXdr);
         await submitTx(installSigned);
 
+        stepEl.textContent = `Enabling ${assetCode} (2/2)...`;
+
         assetContractId = await getAssetContractId(assetCode, assetIssuer);
         const args = [
           nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
@@ -136,6 +136,7 @@ function renderStep(): HTMLElement {
             channelContractId: channelId,
             assetCode,
             assetContractId,
+            issuerAddress: assetIssuer,
             label: `${assetCode} Privacy Channel`,
           });
         } catch (err) {
@@ -148,6 +149,13 @@ function renderStep(): HTMLElement {
       stepEl.className = "deploy-step deploy-step-done";
       stepEl.textContent = `${assetCode} enabled`;
       capture("council_asset_enabled", { assetCode, channelId });
+
+      // Show the new asset as a badge
+      const assetList = el.querySelector("#asset-list") as HTMLDivElement;
+      const badge = document.createElement("span");
+      badge.className = "asset-badge";
+      badge.textContent = assetCode;
+      assetList.appendChild(badge);
 
       // Reset form for another asset
       (el.querySelector("#asset-code") as HTMLInputElement).value = "";

@@ -59,10 +59,8 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 const STEPS = [
-  { id: "install-auth", label: "Install Council" },
-  { id: "deploy-auth", label: "Deploy Council" },
-  { id: "install-channel", label: "Install XLM" },
-  { id: "deploy-channel", label: "Enable XLM" },
+  { id: "create-council", label: "Creating council" },
+  { id: "enable-xlm", label: "Enabling XLM" },
 ];
 
 function renderStep(): HTMLElement {
@@ -83,7 +81,7 @@ function renderStep(): HTMLElement {
   el.innerHTML = `
     <h2>Create your council</h2>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
-      This will set up your Council. We need you to approve <strong>4 transactions</strong>.
+      This will set up your Council. We need you to approve <strong>4 transactions</strong> (2 per step).
     </p>
 
     ${metadata?.name ? `
@@ -105,10 +103,11 @@ function renderStep(): HTMLElement {
   const createBtn = el.querySelector("#create-btn") as HTMLButtonElement;
   const errorEl = el.querySelector("#create-error") as HTMLParagraphElement;
 
-  function markStep(idx: number, status: "active" | "done" | "error") {
+  function markStep(idx: number, status: "active" | "done" | "error", sub?: string) {
     const stepEl = el.querySelector(`#cs-${STEPS[idx].id}`) as HTMLDivElement;
     if (!stepEl) return;
     stepEl.className = `deploy-step deploy-step-${status}`;
+    if (sub) stepEl.textContent = `${STEPS[idx].label} (${sub})`;
   }
 
   createBtn.addEventListener("click", async () => {
@@ -154,7 +153,7 @@ function renderStep(): HTMLElement {
 
       // Step 0: Install Channel Auth WASM
       if (p.step < 1) {
-        markStep(0, "active");
+        markStep(0, "active", "1/2");
         await withSpan("create.install_auth", traceId, async () => {
           const authWasm = await fetchWasm("channel_auth_contract");
           const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(authWasm, adminAddress);
@@ -164,16 +163,17 @@ function renderStep(): HTMLElement {
           p.step = 1;
           saveProgress(p);
         });
-        markStep(0, "done");
+        markStep(0, "active", "2/2");
       }
 
       // Step 1: Deploy Channel Auth
       if (p.step < 2) {
-        markStep(1, "active");
         await withSpan("create.deploy_auth", traceId, async () => {
           const adminScVal = nativeToScVal(Address.fromString(adminAddress), { type: "address" });
-          const authSalt = await computeDeploySalt(adminAddress, "channel-auth");
-          const deployXdr = await buildDeployContractTx(hexToBytes(p.authWasmHash!), adminAddress, [adminScVal], authSalt);
+          // Channel Auth uses a random salt — each council from the same wallet
+          // must have a unique address, and we don't need to derive it later
+          // (the user always knows their Channel Auth address).
+          const deployXdr = await buildDeployContractTx(hexToBytes(p.authWasmHash!), adminAddress, [adminScVal]);
           const deploySigned = await signTransaction(deployXdr);
           const { contractId } = await submitTx(deploySigned);
           if (!contractId) throw new Error("Failed to create council");
@@ -181,12 +181,12 @@ function renderStep(): HTMLElement {
           p.step = 2;
           saveProgress(p);
         });
-        markStep(1, "done");
+        markStep(0, "done");
       }
 
       // Step 2: Install Privacy Channel WASM
       if (p.step < 3) {
-        markStep(2, "active");
+        markStep(1, "active", "1/2");
         await withSpan("create.install_channel", traceId, async () => {
           const channelWasm = await fetchWasm("privacy_channel");
           const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(channelWasm, adminAddress);
@@ -196,12 +196,11 @@ function renderStep(): HTMLElement {
           p.step = 3;
           saveProgress(p);
         });
-        markStep(2, "done");
+        markStep(1, "active", "2/2");
       }
 
       // Step 3: Deploy Privacy Channel
       if (p.step < 4) {
-        markStep(3, "active");
         await withSpan("create.deploy_channel", traceId, async () => {
           p.assetContractId = await getAssetContractId("XLM");
           const channelArgs = [
@@ -218,7 +217,7 @@ function renderStep(): HTMLElement {
           p.step = 4;
           saveProgress(p);
         });
-        markStep(3, "done");
+        markStep(1, "done");
       }
 
       // Store the council ID so subsequent onboarding steps can find the right council
@@ -232,6 +231,7 @@ function renderStep(): HTMLElement {
               name: metadata.name,
               description: metadata.description || undefined,
               contactEmail: metadata.contactEmail || undefined,
+              channelAuthId: p.channelAuthId!,
             });
           }
           if (metadata?.jurisdictions) {
@@ -244,6 +244,7 @@ function renderStep(): HTMLElement {
             channelContractId: p.privacyChannelId!,
             assetCode: "XLM",
             assetContractId: p.assetContractId!,
+            issuerAddress: "",
             label: "XLM Privacy Channel",
           });
         } catch (err) {
@@ -260,7 +261,7 @@ function renderStep(): HTMLElement {
     } catch (error) {
       const msg = friendlyError(error);
       capture("council_create_failed", { error: msg });
-      if (p.step < 4) markStep(p.step, "error");
+      if (p.step < 4) markStep(p.step < 2 ? 0 : 1, "error");
       errorEl.textContent = msg;
       errorEl.hidden = false;
       createBtn.disabled = false;

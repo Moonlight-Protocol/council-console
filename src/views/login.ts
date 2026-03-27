@@ -50,6 +50,7 @@ export function loginView(): HTMLElement {
     connectStep.hidden = false;
     signinStep.hidden = true;
     errorEl.hidden = true;
+    (container.querySelector("#connect-btn") as HTMLButtonElement).disabled = false;
   });
 
   // Step 1: Connect Wallet

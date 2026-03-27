@@ -481,8 +481,8 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
   object-fit: cover;
 }
 
-/* Dashboard header */
-.dashboard-header {
+/* Page header */
+.page-header {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
