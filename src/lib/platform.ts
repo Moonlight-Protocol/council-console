@@ -84,6 +84,7 @@ export async function pushMetadata(data: {
   description?: string;
   contactEmail?: string;
   channelAuthId?: string;
+  opexPublicKey?: string;
 }): Promise<void> {
   const res = await platformFetch("/api/v1/council/metadata", {
     method: "PUT",
@@ -190,6 +191,8 @@ export interface JoinRequest {
   publicKey: string;
   label: string | null;
   contactEmail: string | null;
+  jurisdictions: string[] | null;
+  callbackEndpoint: string | null;
   status: string;
   createdAt: string;
   reviewedAt: string | null;
@@ -205,12 +208,17 @@ export async function listJoinRequests(status?: string): Promise<JoinRequest[]> 
   return data;
 }
 
-/** Approve a join request (admin). */
-export async function approveJoinRequest(id: string): Promise<void> {
+/** Approve a join request (admin). Returns config payload + callback endpoint for client-side config push. */
+export async function approveJoinRequest(id: string): Promise<{
+  callbackEndpoint: string | null;
+  configPayload: Record<string, unknown> | null;
+}> {
   const res = await platformFetch(`/api/v1/council/provider-requests/${encodeURIComponent(id)}/approve`, {
     method: "POST",
   });
   if (!res.ok) throw new Error("Failed to approve join request");
+  const { data } = await res.json();
+  return { callbackEndpoint: data.callbackEndpoint, configPayload: data.configPayload };
 }
 
 /** Reject a join request (admin). */
