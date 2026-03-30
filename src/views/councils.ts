@@ -2,6 +2,7 @@ import { page } from "../components/page.ts";
 import { escapeHtml } from "../lib/dom.ts";
 import { deleteCouncil } from "../lib/platform.ts";
 import { navigate } from "../lib/router.ts";
+import { PLATFORM_URL } from "../lib/config.ts";
 import { fetchCouncilState, type CouncilState } from "../lib/onboarding.ts";
 
 async function renderContent(): Promise<HTMLElement> {
@@ -29,7 +30,8 @@ async function renderContent(): Promise<HTMLElement> {
   }
 
   // Build table row from platform data
-  const inviteLink = `${window.location.origin}${window.location.pathname}#/join`;
+  const baseUrl = PLATFORM_URL || `${window.location.origin}${window.location.pathname}#/join`;
+  const inviteLink = state.channelAuthId ? `${baseUrl}?council=${state.channelAuthId}` : baseUrl;
   const assets = state.channels.map((ch) => ch.assetCode);
   const badges = assets.map((a) => `<span class="asset-badge" style="padding:0.2rem 0.5rem;font-size:0.75rem">${escapeHtml(a)}</span>`).join("");
   const flags = state.jurisdictions.map((j) => {
