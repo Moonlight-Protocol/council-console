@@ -232,6 +232,7 @@ function renderStep(): HTMLElement {
               description: metadata.description || undefined,
               contactEmail: metadata.contactEmail || undefined,
               channelAuthId: p.channelAuthId!,
+              opexPublicKey: sessionStorage.getItem("onboarding_opex_pk") || undefined,
             });
           }
           if (metadata?.jurisdictions) {
