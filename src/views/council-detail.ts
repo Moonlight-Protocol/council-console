@@ -4,6 +4,7 @@ import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
 import { navigate } from "../lib/router.ts";
+import { PLATFORM_URL } from "../lib/config.ts";
 import {
   isPlatformConfigured,
   isAuthenticated as isPlatformAuthed,
@@ -204,8 +205,11 @@ async function renderContent(): Promise<HTMLElement> {
   });
 
   // --- Copy buttons ---
+  const baseInviteUrl = PLATFORM_URL || `${window.location.origin}${window.location.pathname}#/join`;
+  const councilInviteLink = councilId ? `${baseInviteUrl}?council=${councilId}` : baseInviteUrl;
+
   el.querySelector(".copy-invite-link")?.addEventListener("click", () => {
-    const link = `${window.location.origin}${window.location.pathname}#/join`;
+    const link = councilInviteLink;
     const btn = el.querySelector(".copy-invite-link") as HTMLButtonElement;
     navigator.clipboard.writeText(link).then(() => {
       const orig = btn.innerHTML;
@@ -257,7 +261,7 @@ async function renderContent(): Promise<HTMLElement> {
 
   // --- Copy join link ---
   el.querySelector(".copy-join-link")?.addEventListener("click", () => {
-    const link = `${window.location.origin}${window.location.pathname}#/join`;
+    const link = councilInviteLink;
     const btn = el.querySelector(".copy-join-link") as HTMLButtonElement;
     navigator.clipboard.writeText(link).then(() => {
       const orig = btn.innerHTML;
@@ -268,20 +272,131 @@ async function renderContent(): Promise<HTMLElement> {
 
   // --- Load requests ---
   const requestsList = el.querySelector("#requests-list") as HTMLDivElement;
+
+  function renderRequestsList(requests: import("../lib/platform.ts").JoinRequest[]) {
+    if (requests.length === 0) {
+      requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
+      return;
+    }
+    requestsList.innerHTML = requests.map((r) => {
+      const flags = (r.jurisdictions || []).map((code) => {
+        const flag = code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+        return `<span title="${escapeHtml(code)}">${flag}</span>`;
+      }).join(" ");
+      return `
+        <div class="list-item" style="padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem">
+            <span class="mono" style="font-size:0.8rem">${escapeHtml(truncateAddress(r.publicKey))}</span>
+            <span class="badge badge-${r.status === "PENDING" ? "pending" : r.status === "APPROVED" ? "active" : "inactive"}">${escapeHtml(r.status)}</span>
+          </div>
+          <div style="display:flex;gap:1rem;font-size:0.8rem;color:var(--text-muted);flex-wrap:wrap">
+            ${r.label ? `<span>${escapeHtml(r.label)}</span>` : ""}
+            ${r.contactEmail ? `<span>${escapeHtml(r.contactEmail)}</span>` : ""}
+            ${flags ? `<span>${flags}</span>` : ""}
+          </div>
+          ${r.status === "PENDING" ? `
+            <div style="margin-top:0.5rem;display:flex;gap:0.5rem">
+              <button class="btn-link approve-req" data-id="${escapeHtml(r.id)}" data-pk="${escapeHtml(r.publicKey)}" style="color:var(--active);font-size:0.8rem">Approve (1 signature)</button>
+              <button class="btn-link reject-req" data-id="${escapeHtml(r.id)}" style="color:var(--inactive);font-size:0.8rem">Reject</button>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+
+    // Wire approve/reject
+    requestsList.querySelectorAll(".approve-req").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = (btn as HTMLElement).dataset.id!;
+        const providerPk = (btn as HTMLElement).dataset.pk!;
+        (btn as HTMLButtonElement).disabled = true;
+        (btn as HTMLButtonElement).textContent = "Building tx...";
+        try {
+          // 1. Build add_provider transaction client-side
+          const { buildInvokeContractTx, submitTx } = await import("../lib/stellar.ts");
+          const { signTransaction } = await import("../lib/wallet.ts");
+          const stellar = await (await import("../lib/stellar.ts")).sdk();
+          const providerAddress = stellar.nativeToScVal(
+            stellar.Address.fromString(providerPk),
+            { type: "address" },
+          );
+
+          const txXdr = await buildInvokeContractTx(
+            councilId!,
+            "add_provider",
+            [providerAddress],
+            adminAddress,
+          );
+
+          // 2. Admin signs with wallet
+          (btn as HTMLButtonElement).textContent = "Sign in wallet...";
+          const signedXdr = await signTransaction(txXdr);
+
+          // 3. Submit to network
+          (btn as HTMLButtonElement).textContent = "Submitting...";
+          await submitTx(signedXdr);
+
+          // 4. Tell platform the request is approved (DB update)
+          (btn as HTMLButtonElement).textContent = "Confirming...";
+          const { approveJoinRequest, listJoinRequests } = await import("../lib/platform.ts");
+          const { callbackEndpoint, configPayload } = await approveJoinRequest(id);
+
+          // 5. Sign config payload and push to PP's callback endpoint
+          if (callbackEndpoint && configPayload) {
+            (btn as HTMLButtonElement).textContent = "Pushing config...";
+            const { signMessage } = await import("../lib/wallet.ts");
+            const { getConnectedAddress } = await import("../lib/wallet.ts");
+            const configJson = JSON.stringify(configPayload);
+            const configSig = await signMessage(configJson);
+            const signedConfig = {
+              payload: configPayload,
+              signature: configSig,
+              publicKey: getConnectedAddress(),
+            };
+            const pushUrl = `${callbackEndpoint.replace(/\/+$/, "")}/api/v1/council/config-push`;
+            const pushRes = await fetch(pushUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(signedConfig),
+            });
+            if (!pushRes.ok) {
+              const pushErr = await pushRes.json().catch(() => ({}));
+              throw new Error(pushErr.message || `Config push failed: ${pushRes.status}`);
+            }
+          }
+
+          capture("council_join_request_approved", { requestId: id });
+          const updated = await listJoinRequests();
+          renderRequestsList(updated);
+        } catch (err) {
+          console.error("Failed to approve:", err);
+          (btn as HTMLButtonElement).textContent = "Failed";
+          (btn as HTMLButtonElement).disabled = false;
+        }
+      });
+    });
+    requestsList.querySelectorAll(".reject-req").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = (btn as HTMLElement).dataset.id!;
+        if (!confirm("Reject this join request?")) return;
+        (btn as HTMLButtonElement).disabled = true;
+        try {
+          const { rejectJoinRequest, listJoinRequests } = await import("../lib/platform.ts");
+          await rejectJoinRequest(id);
+          capture("council_join_request_rejected", { requestId: id });
+          const updated = await listJoinRequests();
+          renderRequestsList(updated);
+        } catch (err) {
+          console.error("Failed to reject:", err);
+          (btn as HTMLButtonElement).textContent = "Failed";
+        }
+      });
+    });
+  }
+
   if (isPlatformAuthed()) {
     import("../lib/platform.ts").then(({ listJoinRequests }) => {
-      listJoinRequests().then((requests) => {
-        if (requests.length === 0) {
-          requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
-        } else {
-          requestsList.innerHTML = requests.map((r) => `
-            <div class="list-item" style="display:flex;justify-content:space-between;align-items:center">
-              <span class="mono">${escapeHtml(truncateAddress(r.publicKey))}</span>
-              <span class="badge badge-${r.status === "PENDING" ? "pending" : r.status === "APPROVED" ? "active" : "inactive"}">${escapeHtml(r.status)}</span>
-            </div>
-          `).join("");
-        }
-      }).catch(() => {
+      listJoinRequests().then(renderRequestsList).catch(() => {
         requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
       });
     });
