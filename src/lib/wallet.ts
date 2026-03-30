@@ -116,6 +116,25 @@ export async function signMessage(message: string): Promise<string> {
 }
 
 /**
+ * Derive a deterministic OpEx (treasury) keypair from the connected wallet.
+ * The admin signs a known message, and the signature is hashed to produce
+ * an Ed25519 seed. Same wallet always produces the same OpEx account.
+ *
+ * Returns { publicKey, secretKey } as Stellar-encoded strings (G.../S...).
+ */
+export async function deriveOpExKeypair(): Promise<{ publicKey: string; secretKey: string }> {
+  const signature = await signMessage("moonlight-council-opex");
+  // Normalize base64url to base64 before decoding
+  const normalized = signature.replace(/-/g, "+").replace(/_/g, "/");
+  const sigBytes = Uint8Array.from(atob(normalized), (c) => c.charCodeAt(0));
+  const seed = new Uint8Array(await crypto.subtle.digest("SHA-256", sigBytes));
+
+  const { Keypair } = await import("stellar-sdk");
+  const keypair = Keypair.fromRawEd25519Seed(seed as unknown as Buffer);
+  return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
+}
+
+/**
  * Sign a transaction XDR with the connected wallet.
  */
 export async function signTransaction(xdr: string): Promise<string> {
