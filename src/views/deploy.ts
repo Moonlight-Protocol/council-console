@@ -235,10 +235,9 @@ function renderContent(): HTMLElement {
       const jurisdictions = Array.from(selectedJurisdictions);
       const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim();
       const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim();
-      const releaseVersion = (el.querySelector("#release-version") as HTMLInputElement).value.trim() || "latest";
 
       const {
-        fetchWasmFromRelease,
+        fetchWasm,
         buildInstallWasmTx,
         buildDeployContractTx,
         submitTx,
@@ -253,8 +252,8 @@ function renderContent(): HTMLElement {
       let authWasm!: Uint8Array;
       let channelWasm!: Uint8Array;
       await withSpan("deploy.fetch_wasms", traceId, async () => {
-        authWasm = await fetchWasmFromRelease("channel_auth_contract", releaseVersion);
-        channelWasm = await fetchWasmFromRelease("privacy_channel", releaseVersion);
+        authWasm = await fetchWasm("channel_auth_contract");
+        channelWasm = await fetchWasm("privacy_channel");
       });
       setStep("step-fetch", "done");
 
