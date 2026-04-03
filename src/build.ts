@@ -14,10 +14,22 @@ const WASM_DIR = "public/wasm";
 const WASM_FILES = ["channel_auth_contract.wasm", "privacy_channel.wasm"];
 const WASM_VERSION = Deno.env.get("SOROBAN_CORE_VERSION") || "latest";
 
-async function downloadWasms() {
+async function resolvesorobanCoreVersion(): Promise<string> {
+  const baseUrl = "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
+  const releaseUrl = WASM_VERSION === "latest" ? `${baseUrl}/latest` : `${baseUrl}/tags/${WASM_VERSION}`;
+  const res = await fetch(releaseUrl);
+  if (!res.ok) return "unknown";
+  const release = await res.json();
+  return ((release.tag_name as string) ?? "unknown").replace(/^v/, "");
+}
+
+async function downloadWasms(): Promise<string> {
   try {
     await Deno.mkdir(WASM_DIR, { recursive: true });
   } catch { /* exists */ }
+
+  // Always resolve the version (needed for build-time injection)
+  const resolvedVersion = await resolvesorobanCoreVersion();
 
   // Check if already downloaded
   const allExist = (await Promise.all(
@@ -27,14 +39,14 @@ async function downloadWasms() {
   )).every(Boolean);
 
   if (allExist) {
-    console.log("Contract WASMs already present, skipping download.");
-    return;
+    console.log(`Contract WASMs already present (soroban-core ${resolvedVersion}), skipping download.`);
+    return resolvedVersion;
   }
 
   const baseUrl = "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
   const releaseUrl = WASM_VERSION === "latest" ? `${baseUrl}/latest` : `${baseUrl}/tags/${WASM_VERSION}`;
 
-  console.log(`Fetching contract WASMs from soroban-core ${WASM_VERSION}...`);
+  console.log(`Fetching contract WASMs from soroban-core ${resolvedVersion}...`);
   const releaseRes = await fetch(releaseUrl);
   if (!releaseRes.ok) throw new Error(`Failed to fetch release: ${releaseRes.status}`);
   const release = await releaseRes.json();
@@ -48,9 +60,11 @@ async function downloadWasms() {
     await Deno.writeFile(`${WASM_DIR}/${name}`, bytes);
     console.log(`  ${name} (${bytes.length} bytes)`);
   }
+
+  return resolvedVersion;
 }
 
-await downloadWasms();
+const sorobanCoreVersion = await downloadWasms();
 
 await esbuild.build({
   entryPoints: ["src/app.ts"],
@@ -61,7 +75,11 @@ await esbuild.build({
   target: "es2022",
   minify: isProduction,
   sourcemap: !isProduction,
-  define: { "__APP_VERSION__": JSON.stringify(version) },
+  define: {
+    "__APP_VERSION__": JSON.stringify(version),
+    "__SOROBAN_CORE_VERSION__": JSON.stringify(sorobanCoreVersion),
+    "__DEV_MODE__": JSON.stringify(!isProduction),
+  },
   inject: ["src/shims/buffer.ts"],
   treeShaking: false,
   plugins: [...denoPlugins({ configPath: `${Deno.cwd()}/deno.json` })],
