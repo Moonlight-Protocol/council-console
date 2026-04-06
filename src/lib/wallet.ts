@@ -46,9 +46,44 @@ export function isAuthenticated(): boolean {
   return !!getConnectedAddress();
 }
 
+// --- Master seed (sessionStorage — persists across refreshes, cleared on tab close) ---
+const SEED_KEY = "master_seed";
+let masterSeed: Uint8Array | null = null;
+
+// Restore from sessionStorage on module load
+{
+  const stored = sessionStorage.getItem(SEED_KEY);
+  if (stored) {
+    masterSeed = Uint8Array.from(atob(stored), (c) => c.charCodeAt(0));
+  }
+}
+
+/**
+ * Derive the master seed from a single wallet signature.
+ * Must be called once per session before any key derivation.
+ */
+export async function initMasterSeed(): Promise<void> {
+  const signature = await signMessage("Moonlight: authorize master key");
+  const normalized = signature.replace(/-/g, "+").replace(/_/g, "/");
+  const sigBytes = Uint8Array.from(atob(normalized), (c) => c.charCodeAt(0));
+  masterSeed = new Uint8Array(await crypto.subtle.digest("SHA-256", sigBytes));
+  sessionStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...masterSeed)));
+}
+
+export function getMasterSeed(): Uint8Array {
+  if (!masterSeed) throw new Error("Master seed not initialized. Sign in first.");
+  return masterSeed;
+}
+
+export function isMasterSeedReady(): boolean {
+  return masterSeed !== null;
+}
+
 export function clearSession(): void {
   connectedAddress = null;
+  masterSeed = null;
   localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(SEED_KEY);
 }
 
 /**
@@ -116,21 +151,34 @@ export async function signMessage(message: string): Promise<string> {
 }
 
 /**
- * Derive a deterministic OpEx (treasury) keypair from the connected wallet.
- * The admin signs a known message, and the signature is hashed to produce
- * an Ed25519 seed. Same wallet always produces the same OpEx account.
- *
- * Returns { publicKey, secretKey } as Stellar-encoded strings (G.../S...).
+ * Derive a deterministic OpEx (treasury) keypair from the master seed.
+ * SHA-256(masterSeed + "opex" + index) → Ed25519 seed.
+ * No wallet interaction — pure math.
  */
-export async function deriveOpExKeypair(): Promise<{ publicKey: string; secretKey: string }> {
-  const signature = await signMessage("moonlight-council-opex");
-  // Normalize base64url to base64 before decoding
-  const normalized = signature.replace(/-/g, "+").replace(/_/g, "/");
-  const sigBytes = Uint8Array.from(atob(normalized), (c) => c.charCodeAt(0));
-  const seed = new Uint8Array(await crypto.subtle.digest("SHA-256", sigBytes));
+export async function deriveOpExKeypair(index: number): Promise<{ publicKey: string; secretKey: string }> {
+  const seed = getMasterSeed();
+  const encoder = new TextEncoder();
+  const input = new Uint8Array([...seed, ...encoder.encode("opex"), ...encoder.encode(String(index))]);
+  const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
 
   const { Keypair } = await import("stellar-sdk");
-  const keypair = Keypair.fromRawEd25519Seed(seed as unknown as Buffer);
+  const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
+  return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
+}
+
+/**
+ * Derive a deterministic council keypair from the master seed.
+ * SHA-256(masterSeed + "council" + index) → Ed25519 seed.
+ * No wallet interaction — pure math.
+ */
+export async function deriveCouncilKeypair(index: number): Promise<{ publicKey: string; secretKey: string }> {
+  const seed = getMasterSeed();
+  const encoder = new TextEncoder();
+  const input = new Uint8Array([...seed, ...encoder.encode("council"), ...encoder.encode(String(index))]);
+  const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
+
+  const { Keypair } = await import("stellar-sdk");
+  const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
   return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
 }
 

@@ -17,7 +17,7 @@ function renderStep(): HTMLElement {
   }
 
   el.innerHTML = `
-    <h2>Enable assets</h2>
+    <h2>Assets</h2>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
       Your council supports <strong>XLM</strong> by default.
       Add additional assets below, or continue to finish setup.

@@ -78,12 +78,12 @@ async function platformFetch(path: string, opts: RequestInit = {}): Promise<Resp
   return res;
 }
 
-/** Push council metadata to the platform. */
+/** Push council metadata to the platform. councilId is the channelAuthId. */
 export async function pushMetadata(data: {
+  councilId: string;
   name: string;
   description?: string;
   contactEmail?: string;
-  channelAuthId?: string;
   opexPublicKey?: string;
 }): Promise<void> {
   const res = await platformFetch("/api/v1/council/metadata", {
@@ -95,9 +95,17 @@ export async function pushMetadata(data: {
   }
 }
 
-/** Add a jurisdiction to the platform. Ignores 409 (already exists). */
-export async function addJurisdiction(countryCode: string, label?: string): Promise<void> {
-  const res = await platformFetch("/api/v1/council/jurisdictions", {
+/** List all councils. */
+export async function listCouncils(): Promise<Array<{ councilId: string; name: string; description: string | null; contactEmail: string | null; councilPublicKey: string }>> {
+  const res = await platformFetch("/api/v1/council/list");
+  if (!res.ok) throw new Error("Failed to list councils");
+  const { data } = await res.json();
+  return data;
+}
+
+/** Add a jurisdiction to a council. Ignores 409 (already exists). */
+export async function addJurisdiction(councilId: string, countryCode: string, label?: string): Promise<void> {
+  const res = await platformFetch(`/api/v1/council/jurisdictions?councilId=${encodeURIComponent(councilId)}`, {
     method: "POST",
     body: JSON.stringify({ countryCode, label }),
   });
@@ -106,23 +114,23 @@ export async function addJurisdiction(countryCode: string, label?: string): Prom
   }
 }
 
-/** Remove a jurisdiction from the platform. */
-export async function removeJurisdiction(countryCode: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/jurisdictions/${encodeURIComponent(countryCode)}`, {
+/** Remove a jurisdiction from a council. */
+export async function removeJurisdiction(councilId: string, countryCode: string): Promise<void> {
+  const res = await platformFetch(`/api/v1/council/jurisdictions/${encodeURIComponent(countryCode)}?councilId=${encodeURIComponent(councilId)}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to remove jurisdiction: ${res.status}`);
 }
 
-/** Register a channel with the platform. Ignores 409 (already exists). */
-export async function registerChannel(data: {
+/** Register a channel with a council. Ignores 409 (already exists). */
+export async function registerChannel(councilId: string, data: {
   channelContractId: string;
   assetCode: string;
   assetContractId?: string;
   issuerAddress?: string;
   label?: string;
 }): Promise<void> {
-  const res = await platformFetch("/api/v1/council/channels", {
+  const res = await platformFetch(`/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -140,11 +148,12 @@ export async function listKnownAssets(): Promise<Array<{ assetCode: string; issu
   return data;
 }
 
-/** Delete the council and all related data from the platform. */
-export async function deleteCouncil(): Promise<void> {
-  const res = await platformFetch("/api/v1/council/metadata", { method: "DELETE" });
+/** Delete a council and all related data from the platform (soft-delete). */
+export async function deleteCouncil(councilId: string): Promise<void> {
+  const res = await platformFetch(`/api/v1/council/metadata?councilId=${encodeURIComponent(councilId)}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete council");
 }
+
 
 // --- Channel API ---
 
@@ -168,17 +177,17 @@ export async function enableChannel(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to re-enable channel");
 }
 
-/** List active channels. */
-export async function listChannels(): Promise<PlatformChannel[]> {
-  const res = await platformFetch("/api/v1/council/channels");
+/** List active channels for a council. */
+export async function listChannels(councilId: string): Promise<PlatformChannel[]> {
+  const res = await platformFetch(`/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`);
   if (!res.ok) throw new Error("Failed to fetch channels");
   const { data } = await res.json();
   return data;
 }
 
-/** List disabled channels. */
-export async function listDisabledChannels(): Promise<PlatformChannel[]> {
-  const res = await platformFetch("/api/v1/council/channels/disabled");
+/** List disabled channels for a council. */
+export async function listDisabledChannels(councilId: string): Promise<PlatformChannel[]> {
+  const res = await platformFetch(`/api/v1/council/channels/disabled?councilId=${encodeURIComponent(councilId)}`);
   if (!res.ok) throw new Error("Failed to fetch disabled channels");
   const { data } = await res.json();
   return data;
@@ -199,26 +208,22 @@ export interface JoinRequest {
   reviewedBy: string | null;
 }
 
-/** Fetch join requests (admin). */
-export async function listJoinRequests(status?: string): Promise<JoinRequest[]> {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+/** Fetch join requests for a council (admin). */
+export async function listJoinRequests(councilId: string, status?: string): Promise<JoinRequest[]> {
+  let qs = `?councilId=${encodeURIComponent(councilId)}`;
+  if (status) qs += `&status=${encodeURIComponent(status)}`;
   const res = await platformFetch(`/api/v1/council/provider-requests${qs}`);
   if (!res.ok) throw new Error("Failed to fetch join requests");
   const { data } = await res.json();
   return data;
 }
 
-/** Approve a join request (admin). Returns config payload + callback endpoint for client-side config push. */
-export async function approveJoinRequest(id: string): Promise<{
-  callbackEndpoint: string | null;
-  configPayload: Record<string, unknown> | null;
-}> {
+/** Approve a join request (admin). The PP detects approval via on-chain event or status polling. */
+export async function approveJoinRequest(id: string): Promise<void> {
   const res = await platformFetch(`/api/v1/council/provider-requests/${encodeURIComponent(id)}/approve`, {
     method: "POST",
   });
   if (!res.ok) throw new Error("Failed to approve join request");
-  const { data } = await res.json();
-  return { callbackEndpoint: data.callbackEndpoint, configPayload: data.configPayload };
 }
 
 /** Reject a join request (admin). */

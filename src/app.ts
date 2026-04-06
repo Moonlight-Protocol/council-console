@@ -7,7 +7,7 @@ import { loginView } from "./views/login.ts";
 import { councilsView } from "./views/councils.ts";
 import { councilDetailView } from "./views/council-detail.ts";
 import { joinView } from "./views/join.ts";
-import { importCouncilView } from "./views/import-council.ts";
+import { importCouncilView as recoverCouncilView } from "./views/import-council.ts";
 
 // Council creation steps
 import { metadataView } from "./views/onboarding/metadata.ts";
@@ -34,7 +34,7 @@ route("/create-council/assets", assetsView);
 route("/create-council/invite", inviteView);
 
 // Import
-route("/import-council", importCouncilView);
+route("/recover-council", recoverCouncilView);
 
 // Public (no auth)
 route("/join", joinView);

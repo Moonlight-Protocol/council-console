@@ -10,7 +10,7 @@ function renderStep(): HTMLElement {
   const inviteLink = councilId ? `${baseUrl}?council=${councilId}` : baseUrl;
 
   el.innerHTML = `
-    <h2>Invite privacy providers</h2>
+    <h2>Privacy Providers</h2>
 
     <div class="stat-card" style="margin-bottom:1.5rem">
       <span class="stat-label">Invite Link</span>
