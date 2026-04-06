@@ -4,7 +4,6 @@ import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
 import { navigate } from "../lib/router.ts";
-import { PLATFORM_URL } from "../lib/config.ts";
 import {
   isPlatformConfigured,
   isAuthenticated as isPlatformAuthed,
@@ -15,6 +14,7 @@ import {
   listDisabledChannels,
   pushMetadata,
 } from "../lib/platform.ts";
+import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
 import { renderJurisdictionMap } from "../lib/world-map.ts";
 import { fetchCouncilState, type CouncilState } from "../lib/onboarding.ts";
 
@@ -199,7 +199,7 @@ async function renderContent(): Promise<HTMLElement> {
   });
 
   // --- Copy buttons ---
-  const baseInviteUrl = PLATFORM_URL || `${window.location.origin}${window.location.pathname}#/join`;
+  const baseInviteUrl = `${window.location.origin}${window.location.pathname}#/join`;
   const councilInviteLink = councilId ? `${baseInviteUrl}?council=${councilId}` : baseInviteUrl;
 
   el.querySelector(".copy-invite-link")?.addEventListener("click", () => {
@@ -357,7 +357,7 @@ async function renderContent(): Promise<HTMLElement> {
     popup.addEventListener("mouseleave", (e) => {
       if (popupLocked) return;
       const related = (e as MouseEvent).relatedTarget as HTMLElement | null;
-      const activeRow = activeRowId ? providersList.querySelector(`[data-request-id="${activeRowId}"]`) : null;
+      const activeRow = activeRowId ? providersList.querySelector(`[data-request-id="${CSS.escape(activeRowId)}"]`) : null;
       if (related && activeRow?.contains(related)) return;
       popup.style.display = "none";
       activeRowId = null;
@@ -395,7 +395,8 @@ async function renderContent(): Promise<HTMLElement> {
           const { addJurisdiction } = await import("../lib/platform.ts");
           for (const code of ppEntry.jurisdictions) {
             if (!jurisdictions.includes(code)) {
-              await addJurisdiction(councilId!, code).catch(() => {});
+              const label = COUNTRY_CODES.find((c) => c.code === code)?.label;
+              await addJurisdiction(councilId!, code, label).catch(() => {});
             }
           }
         }

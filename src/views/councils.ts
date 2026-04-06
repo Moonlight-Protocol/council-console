@@ -3,7 +3,6 @@ import { escapeHtml } from "../lib/dom.ts";
 import { deleteCouncil, listCouncils } from "../lib/platform.ts";
 import { navigate } from "../lib/router.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
-import { PLATFORM_URL } from "../lib/config.ts";
 import { fetchCouncilState } from "../lib/onboarding.ts";
 import { isPlatformConfigured, isAuthenticated as isPlatformAuthed } from "../lib/platform.ts";
 
@@ -53,14 +52,21 @@ async function renderContent(): Promise<HTMLElement> {
   }
 
   // Fetch state for each council to get jurisdictions, assets, providers
-  const states = await Promise.all(
-    councils.map(async (c) => {
-      const state = await fetchCouncilState(c.councilId);
-      return { ...c, state };
-    }),
-  );
+  // Limit concurrency to batches of 5 to avoid overwhelming the network
+  const states: Array<{ councilId: string; name: string; state: Awaited<ReturnType<typeof fetchCouncilState>> }> = [];
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < councils.length; i += BATCH_SIZE) {
+    const batch = councils.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (c) => {
+        const state = await fetchCouncilState(c.councilId);
+        return { ...c, state };
+      }),
+    );
+    states.push(...results);
+  }
 
-  const baseUrl = PLATFORM_URL || `${window.location.origin}${window.location.pathname}#/join`;
+  const baseUrl = `${window.location.origin}${window.location.pathname}#/join`;
 
   const rows = states.map(({ councilId, state }) => {
     const inviteLink = `${baseUrl}?council=${councilId}`;
@@ -115,7 +121,7 @@ async function renderContent(): Promise<HTMLElement> {
       if (!confirm(msg)) return;
 
       try {
-        // Remove all providers on-chain in a single transaction
+        // Remove all providers on-chain, batched into groups of 100 (Stellar tx op limit)
         if (providerCount > 0 && councilState) {
           const { sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
           const { signTransaction } = await import("../lib/wallet.ts");
@@ -123,38 +129,46 @@ async function renderContent(): Promise<HTMLElement> {
           const stellar = await getSdk();
           const server = await getRpcServer();
           const adminAddress = getConnectedAddress()!;
-
           const contract = new stellar.Contract(id);
-          const account = await server.getAccount(adminAddress);
-          const builder = new stellar.TransactionBuilder(account, {
-            fee: "10000000",
-            networkPassphrase: getNetworkPassphrase(),
-          });
 
-          for (const p of councilState.state.providers) {
-            builder.addOperation(
-              contract.call("remove_provider", stellar.nativeToScVal(
-                stellar.Address.fromString(p.publicKey), { type: "address" },
-              )),
-            );
-          }
+          const OPS_PER_TX = 100;
+          const providers = councilState.state.providers;
 
-          const tx = builder.setTimeout(300).build();
-          const sim = await server.simulateTransaction(tx);
-          if ("error" in sim && sim.error) throw new Error(`Simulation failed: ${sim.error}`);
-          const { assembleTransaction } = stellar.rpc;
-          const prepared = assembleTransaction(tx, sim).build();
-          const signedXdr = await signTransaction(prepared.toXDR());
+          for (let batchStart = 0; batchStart < providers.length; batchStart += OPS_PER_TX) {
+            const batch = providers.slice(batchStart, batchStart + OPS_PER_TX);
+            const account = await server.getAccount(adminAddress);
+            const builder = new stellar.TransactionBuilder(account, {
+              fee: "10000000",
+              networkPassphrase: getNetworkPassphrase(),
+            });
 
-          const signed = stellar.TransactionBuilder.fromXDR(signedXdr, getNetworkPassphrase());
-          const result = await server.sendTransaction(signed);
+            for (const p of batch) {
+              builder.addOperation(
+                contract.call("remove_provider", stellar.nativeToScVal(
+                  stellar.Address.fromString(p.publicKey), { type: "address" },
+                )),
+              );
+            }
 
-          // Wait for confirmation
-          for (let i = 0; i < 30; i++) {
-            const status = await server.getTransaction(result.hash);
-            if (status.status === "SUCCESS") break;
-            if (status.status === "FAILED") throw new Error("remove_provider transaction failed");
-            await new Promise(r => setTimeout(r, 2000));
+            const tx = builder.setTimeout(300).build();
+            const sim = await server.simulateTransaction(tx);
+            if ("error" in sim && sim.error) throw new Error(`Simulation failed: ${sim.error}`);
+            const { assembleTransaction } = stellar.rpc;
+            const prepared = assembleTransaction(tx, sim).build();
+            const signedXdr = await signTransaction(prepared.toXDR());
+
+            const signed = stellar.TransactionBuilder.fromXDR(signedXdr, getNetworkPassphrase());
+            const result = await server.sendTransaction(signed);
+
+            // Wait for confirmation
+            let confirmed = false;
+            for (let i = 0; i < 30; i++) {
+              const status = await server.getTransaction(result.hash);
+              if (status.status === "SUCCESS") { confirmed = true; break; }
+              if (status.status === "FAILED") throw new Error("remove_provider transaction failed");
+              await new Promise(r => setTimeout(r, 2000));
+            }
+            if (!confirmed) throw new Error("remove_provider transaction not confirmed after polling — aborting delete");
           }
         }
 

@@ -186,6 +186,9 @@ function renderStep(): HTMLElement {
             } catch { /* platform unavailable */ }
           }
 
+          // Sequential RPC calls to find the first unused derivation index.
+          // Up to MAX_SCAN calls is acceptable here — this only runs once during
+          // onboarding, not on every page load.
           let councilIndex = 0;
           const MAX_SCAN = 20;
           for (; councilIndex < MAX_SCAN; councilIndex++) {

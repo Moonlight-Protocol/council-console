@@ -43,7 +43,6 @@ function renderContent(): HTMLElement {
 
   const statusEl = el.querySelector("#scan-status") as HTMLParagraphElement;
   const resultsEl = el.querySelector("#scan-results") as HTMLDivElement;
-  const importFormEl = el.querySelector("#import-form") as HTMLDivElement;
 
   const adminAddress = getConnectedAddress();
   if (!adminAddress) {
@@ -51,7 +50,7 @@ function renderContent(): HTMLElement {
     return el;
   }
 
-  scanCouncils(adminAddress, statusEl, resultsEl, importFormEl);
+  scanCouncils(adminAddress, statusEl, resultsEl);
   return el;
 }
 
@@ -59,7 +58,6 @@ async function scanCouncils(
   adminAddress: string,
   statusEl: HTMLParagraphElement,
   resultsEl: HTMLDivElement,
-  importFormEl: HTMLDivElement,
 ) {
   const { computeCouncilSalt, deriveContractAddress, sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
   const { getNetworkPassphrase } = await import("../lib/config.ts");
@@ -167,7 +165,7 @@ async function scanCouncils(
   resultsEl.querySelectorAll(".import-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const address = (btn as HTMLElement).dataset.addr!;
-      showImportForm(address, importFormEl);
+      showImportForm(address);
     });
   });
 }
@@ -176,7 +174,7 @@ async function scanCouncils(
  * Show the import form for an on-chain council not in the DB.
  * Collects name, description, email, jurisdictions, then registers with platform + discovers channels.
  */
-function showImportForm(contractId: string, _container: HTMLDivElement) {
+function showImportForm(contractId: string) {
   document.querySelector("#recover-modal")?.remove();
 
   const selectedJurisdictions = new Set<string>();

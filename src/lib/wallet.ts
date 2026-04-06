@@ -54,7 +54,13 @@ let masterSeed: Uint8Array | null = null;
 {
   const stored = sessionStorage.getItem(SEED_KEY);
   if (stored) {
-    masterSeed = Uint8Array.from(atob(stored), (c) => c.charCodeAt(0));
+    try {
+      masterSeed = Uint8Array.from(atob(stored), (c) => c.charCodeAt(0));
+    } catch {
+      // Corrupted base64 — clear and proceed without seed
+      sessionStorage.removeItem(SEED_KEY);
+      masterSeed = null;
+    }
   }
 }
 
@@ -154,6 +160,10 @@ export async function signMessage(message: string): Promise<string> {
  * Derive a deterministic OpEx (treasury) keypair from the master seed.
  * SHA-256(masterSeed + "opex" + index) → Ed25519 seed.
  * No wallet interaction — pure math.
+ *
+ * NOTE: The returned secretKey is a JS string and cannot be zeroed from memory.
+ * This is a known limitation of JS string immutability — there is no way to
+ * clear it after use. Callers should avoid persisting it unnecessarily.
  */
 export async function deriveOpExKeypair(index: number): Promise<{ publicKey: string; secretKey: string }> {
   const seed = getMasterSeed();
@@ -162,6 +172,9 @@ export async function deriveOpExKeypair(index: number): Promise<{ publicKey: str
   const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
 
   const { Keypair } = await import("stellar-sdk");
+  // stellar-sdk's fromRawEd25519Seed expects a Buffer, but we have a Uint8Array.
+  // The double cast is needed because the types are incompatible at compile time,
+  // even though Uint8Array is accepted at runtime.
   const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
   return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
 }
@@ -170,6 +183,10 @@ export async function deriveOpExKeypair(index: number): Promise<{ publicKey: str
  * Derive a deterministic council keypair from the master seed.
  * SHA-256(masterSeed + "council" + index) → Ed25519 seed.
  * No wallet interaction — pure math.
+ *
+ * NOTE: The returned secretKey is a JS string and cannot be zeroed from memory.
+ * This is a known limitation of JS string immutability — there is no way to
+ * clear it after use. Callers should avoid persisting it unnecessarily.
  */
 export async function deriveCouncilKeypair(index: number): Promise<{ publicKey: string; secretKey: string }> {
   const seed = getMasterSeed();
@@ -178,6 +195,9 @@ export async function deriveCouncilKeypair(index: number): Promise<{ publicKey: 
   const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
 
   const { Keypair } = await import("stellar-sdk");
+  // stellar-sdk's fromRawEd25519Seed expects a Buffer, but we have a Uint8Array.
+  // The double cast is needed because the types are incompatible at compile time,
+  // even though Uint8Array is accepted at runtime.
   const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
   return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
 }
