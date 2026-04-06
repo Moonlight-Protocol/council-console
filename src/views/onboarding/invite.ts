@@ -4,10 +4,12 @@ import { navigate } from "../../lib/router.ts";
 function renderStep(): HTMLElement {
   const el = document.createElement("div");
 
-  const inviteLink = `${window.location.origin}${window.location.pathname}#/join`;
+  const councilId = sessionStorage.getItem("onboarding_council_id") || "";
+  const baseUrl = `${window.location.origin}${window.location.pathname}#/join`;
+  const inviteLink = councilId ? `${baseUrl}?council=${councilId}` : baseUrl;
 
   el.innerHTML = `
-    <h2>Invite privacy providers</h2>
+    <h2>Privacy Providers</h2>
 
     <div class="stat-card" style="margin-bottom:1.5rem">
       <span class="stat-label">Invite Link</span>

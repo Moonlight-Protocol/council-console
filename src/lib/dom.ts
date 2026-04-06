@@ -39,6 +39,12 @@ export function friendlyError(error: unknown): string {
   if (lower.includes("failed to fetch") || lower.includes("networkerror")) {
     return "Network error. Please check your connection.";
   }
+  if (lower.includes("insufficient") || lower.includes("underfunded") || lower.includes("balance") || lower.includes("tx_insufficient")) {
+    return "Your wallet doesn't have enough funds to complete this transaction.";
+  }
+  if (lower.includes("not found")) {
+    return "The requested resource was not found.";
+  }
   // Log the full error for debugging, return a generic message
   console.warn("[friendlyError]", msg);
   return "Something went wrong. Please try again.";

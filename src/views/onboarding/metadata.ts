@@ -14,7 +14,7 @@ function renderStep(): HTMLElement {
   } | null;
 
   el.innerHTML = `
-    <h2>Set up your council</h2>
+    <h2>Council</h2>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
       Tell us about your council. This information will be visible to privacy providers who want to join.
     </p>
@@ -97,20 +97,19 @@ function renderStep(): HTMLElement {
 
     for (const country of COUNTRY_CODES) {
       if (!country.label.toLowerCase().includes(q) && !country.code.toLowerCase().includes(q)) continue;
-      const label = document.createElement("label");
-      label.className = "jurisdiction-option";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.value = country.code;
-      cb.checked = selectedJurisdictions.has(country.code);
-      cb.addEventListener("change", () => {
-        if (cb.checked) selectedJurisdictions.add(country.code);
-        else selectedJurisdictions.delete(country.code);
+      const selected = selectedJurisdictions.has(country.code);
+      const option = document.createElement("div");
+      option.className = "jurisdiction-option" + (selected ? " selected" : "");
+      const flag = country.code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      option.textContent = `${flag} ${country.label}`;
+      option.addEventListener("click", () => {
+        if (selected) selectedJurisdictions.delete(country.code);
+        else selectedJurisdictions.add(country.code);
         renderTags();
+        if (!selected) { filterEl.value = ""; renderList(""); }
+        else renderList(filterEl.value);
       });
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(` ${country.code} \u2014 ${country.label}`));
-      listEl.appendChild(label);
+      listEl.appendChild(option);
     }
   }
 
@@ -152,7 +151,7 @@ function renderStep(): HTMLElement {
     // Save to sessionStorage — platform push happens in the create step
     saveFormDraft("metadata", { name, description, contactEmail, jurisdictions });
     capture("onboarding_metadata_complete", { name });
-    navigate("/create-council/fund");
+    navigate("/create-council/create");
   });
 
   return el;

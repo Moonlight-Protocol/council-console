@@ -180,23 +180,19 @@ function renderContent(): HTMLElement {
       (c) => c.label.toLowerCase().includes(query) || c.code.toLowerCase().includes(query),
     );
     for (const country of filtered) {
-      const label = document.createElement("label");
-      label.className = "jurisdiction-option";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = country.code;
-      checkbox.checked = selectedJurisdictions.has(country.code);
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) {
-          selectedJurisdictions.add(country.code);
-        } else {
-          selectedJurisdictions.delete(country.code);
-        }
+      const selected = selectedJurisdictions.has(country.code);
+      const option = document.createElement("div");
+      option.className = "jurisdiction-option" + (selected ? " selected" : "");
+      const flag = country.code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      option.textContent = `${flag} ${country.label}`;
+      option.addEventListener("click", () => {
+        if (selected) selectedJurisdictions.delete(country.code);
+        else selectedJurisdictions.add(country.code);
         renderJurisdictionTags();
+        if (!selected) { filterEl.value = ""; renderJurisdictionList(""); }
+        else renderJurisdictionList(filterEl.value);
       });
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(` ${country.code} \u2014 ${country.label}`));
-      listEl.appendChild(label);
+      listEl.appendChild(option);
     }
   }
 

@@ -150,7 +150,7 @@ th {
 .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--pending); }
 .badge-inactive { background: rgba(239, 68, 68, 0.15); color: var(--inactive); }
 
-.form-group { margin-bottom: 1rem; }
+.form-group { margin-bottom: 1rem; position: relative; }
 
 .form-group label {
   display: block;
@@ -308,11 +308,16 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
 
 /* Jurisdiction picker */
 .jurisdiction-picker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   max-height: 200px;
   overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .jurisdiction-list { padding: 0.25rem 0; }
@@ -328,8 +333,7 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
 }
 
 .jurisdiction-option:hover { background: var(--surface); }
-
-.jurisdiction-option input[type="checkbox"] { accent-color: var(--primary); }
+.jurisdiction-option.selected { background: var(--surface); color: var(--active); }
 
 .jurisdiction-tags {
   display: flex;

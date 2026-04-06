@@ -1,15 +1,15 @@
 import { renderNav } from "./nav.ts";
-import { isAuthenticated } from "../lib/wallet.ts";
+import { isAuthenticated, isMasterSeedReady } from "../lib/wallet.ts";
 import { isAuthenticated as isPlatformAuthed } from "../lib/platform.ts";
 import { navigate } from "../lib/router.ts";
 
 /**
  * Wraps a view with the nav bar and auth check.
- * Requires both wallet connection AND platform authentication.
+ * Requires wallet connection, master seed, AND platform authentication.
  */
 export function page(renderContent: () => HTMLElement | Promise<HTMLElement>): () => Promise<HTMLElement> {
   return async () => {
-    if (!isAuthenticated() || !isPlatformAuthed()) {
+    if (!isAuthenticated() || !isMasterSeedReady() || !isPlatformAuthed()) {
       navigate("/login");
       return document.createElement("div");
     }

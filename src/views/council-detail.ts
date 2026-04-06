@@ -14,6 +14,7 @@ import {
   listDisabledChannels,
   pushMetadata,
 } from "../lib/platform.ts";
+import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
 import { renderJurisdictionMap } from "../lib/world-map.ts";
 import { fetchCouncilState, type CouncilState } from "../lib/onboarding.ts";
 
@@ -28,7 +29,7 @@ async function renderContent(): Promise<HTMLElement> {
   }
 
   // Fetch from platform DB — the source of truth
-  const state = await fetchCouncilState();
+  const state = await fetchCouncilState(councilId!);
   if (!state.exists) {
     el.innerHTML = `<p style="color:var(--text-muted)">Council not found on the platform. <a href="#/">Back</a></p>`;
     return el;
@@ -51,12 +52,12 @@ async function renderContent(): Promise<HTMLElement> {
     : '<span style="color:var(--text-muted)">No assets enabled</span>';
 
   el.innerHTML = `
-    <div class="council-header"><a href="#/" class="icon-btn" title="Back" style="color:var(--text)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></a><span class="inline-edit" data-field="name"><h2>${escapeHtml(council.name || "Unnamed Council")}</h2><svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><span class="inline-edit" data-field="contactEmail"><span style="color:var(--text-muted);font-size:0.75rem">${escapeHtml(state.contactEmail || "add email")}</span><svg class="edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><div class="header-icons"><button class="icon-btn copy-contract" data-value="${escapeHtml(councilId)}" title="Copy Council address"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="icon-btn copy-admin" data-value="${escapeHtml(adminAddress)}" title="Copy admin address"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button><button class="icon-btn copy-invite-link" title="Copy invite link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button></div></div>
+    <div class="council-header"><a href="#/" class="icon-btn" title="Back" style="color:var(--text)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></a><span class="inline-edit" data-field="name"><h2>${escapeHtml(council.name || "Unnamed Council")}</h2><svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><span class="inline-edit" data-field="contactEmail"><span style="color:var(--text-muted);font-size:0.75rem">${escapeHtml(state.contactEmail || "add email")}</span><svg class="edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><div class="header-icons"><button class="icon-btn copy-contract" data-value="${escapeHtml(councilId)}" title="Copy Council address"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg></button><button class="icon-btn copy-invite-link" title="Copy invite link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button></div></div>
 
     <div id="jurisdiction-map" class="jurisdiction-map"></div>
     <div class="inline-edit" data-field="description" style="margin:0.75rem 0"><p style="color:var(--text-muted);font-size:0.85rem;margin:0">${escapeHtml(state.description || "add description")}</p><svg class="edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
 
-    <h3 style="display:flex;align-items:center;gap:0.5rem">Assets (${channels.length}) <button id="add-asset-btn" class="icon-btn" title="Add asset"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button></h3>
+    <h3 style="display:flex;align-items:center;gap:0.5rem">Assets (${channels.length}) <button id="add-asset-btn" class="icon-btn" title="Add asset"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></h3>
     <div id="asset-badges" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.75rem 0">
       ${assetBadges}
     </div>
@@ -84,15 +85,8 @@ async function renderContent(): Promise<HTMLElement> {
       </div>
     </div>
 
-    <h3>Providers (${providers.length})</h3>
-    <div id="providers-list">
-      ${providers.length > 0
-        ? providers.map((p) => `<div class="list-item mono">${escapeHtml(truncateAddress(p.publicKey))}</div>`).join("")
-        : `<p style="color:var(--text-muted)">No providers</p>`}
-    </div>
-
-    <h3 style="display:flex;align-items:center;gap:0.5rem">Requests <button class="icon-btn copy-join-link" title="Copy join link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button></h3>
-    <div id="requests-list"><p style="color:var(--text-muted)">Loading...</p></div>
+    <h3 style="display:flex;align-items:center;gap:0.5rem">Providers <button class="icon-btn copy-join-link" title="Copy join link"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button></h3>
+    <div id="providers-list"><p style="color:var(--text-muted)">Loading...</p></div>
   `;
 
   // --- Jurisdiction map (always shown, clickable) ---
@@ -115,7 +109,7 @@ async function renderContent(): Promise<HTMLElement> {
         if (isPlatformAuthed()) {
           try {
             const { removeJurisdiction } = await import("../lib/platform.ts");
-            await removeJurisdiction(code);
+            await removeJurisdiction(councilId!, code);
             navigate(`/council?id=${encodeURIComponent(councilId)}`, { force: true });
           } catch (err) {
             console.warn("Failed to remove jurisdiction:", err);
@@ -126,7 +120,7 @@ async function renderContent(): Promise<HTMLElement> {
         if (isPlatformAuthed()) {
           try {
             const { addJurisdiction } = await import("../lib/platform.ts");
-            await addJurisdiction(code, name);
+            await addJurisdiction(councilId!, code, name);
             navigate(`/council?id=${encodeURIComponent(councilId)}`, { force: true });
           } catch (err) {
             console.warn("Failed to add jurisdiction:", err);
@@ -178,6 +172,7 @@ async function renderContent(): Promise<HTMLElement> {
             const currentEmail = emailEl?.textContent === "add email" ? "" : (emailEl?.textContent || "");
             const currentDesc = descEl?.textContent === "add description" ? "" : (descEl?.textContent || "");
             pushMetadata({
+              councilId: councilId!,
               name: currentName || "Unnamed Council",
               description: currentDesc || undefined,
               contactEmail: currentEmail || undefined,
@@ -204,8 +199,11 @@ async function renderContent(): Promise<HTMLElement> {
   });
 
   // --- Copy buttons ---
+  const baseInviteUrl = `${window.location.origin}${window.location.pathname}#/join`;
+  const councilInviteLink = councilId ? `${baseInviteUrl}?council=${councilId}` : baseInviteUrl;
+
   el.querySelector(".copy-invite-link")?.addEventListener("click", () => {
-    const link = `${window.location.origin}${window.location.pathname}#/join`;
+    const link = councilInviteLink;
     const btn = el.querySelector(".copy-invite-link") as HTMLButtonElement;
     navigator.clipboard.writeText(link).then(() => {
       const orig = btn.innerHTML;
@@ -214,7 +212,7 @@ async function renderContent(): Promise<HTMLElement> {
     });
   });
 
-  el.querySelectorAll(".copy-contract, .copy-admin").forEach((btn) => {
+  el.querySelectorAll(".copy-contract").forEach((btn) => {
     btn.addEventListener("click", () => {
       const value = (btn as HTMLElement).dataset.value;
       if (!value) return;
@@ -244,7 +242,7 @@ async function renderContent(): Promise<HTMLElement> {
       if (!confirm(`Disable ${assetCode}? You can re-enable it later.`)) return;
 
       try {
-        const platformChannels = await listChannels();
+        const platformChannels = await listChannels(councilId!);
         const ch = platformChannels.find((c) => c.channelContractId === contractId);
         if (ch) await disableChannel(ch.id);
         capture("council_asset_disabled", { assetCode });
@@ -257,7 +255,7 @@ async function renderContent(): Promise<HTMLElement> {
 
   // --- Copy join link ---
   el.querySelector(".copy-join-link")?.addEventListener("click", () => {
-    const link = `${window.location.origin}${window.location.pathname}#/join`;
+    const link = councilInviteLink;
     const btn = el.querySelector(".copy-join-link") as HTMLButtonElement;
     navigator.clipboard.writeText(link).then(() => {
       const orig = btn.innerHTML;
@@ -266,28 +264,245 @@ async function renderContent(): Promise<HTMLElement> {
     });
   });
 
-  // --- Load requests ---
-  const requestsList = el.querySelector("#requests-list") as HTMLDivElement;
-  if (isPlatformAuthed()) {
-    import("../lib/platform.ts").then(({ listJoinRequests }) => {
-      listJoinRequests().then((requests) => {
-        if (requests.length === 0) {
-          requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
-        } else {
-          requestsList.innerHTML = requests.map((r) => `
-            <div class="list-item" style="display:flex;justify-content:space-between;align-items:center">
-              <span class="mono">${escapeHtml(truncateAddress(r.publicKey))}</span>
-              <span class="badge badge-${r.status === "PENDING" ? "pending" : r.status === "APPROVED" ? "active" : "inactive"}">${escapeHtml(r.status)}</span>
-            </div>
-          `).join("");
-        }
-      }).catch(() => {
-        requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
+  // --- Load providers (unified: active + requested + rejected + removed) ---
+  const providersList = el.querySelector("#providers-list") as HTMLDivElement;
+
+  interface ProviderEntry {
+    publicKey: string;
+    label: string | null;
+    contactEmail: string | null;
+    jurisdictions: string[] | null;
+    status: "Active" | "Requested" | "Approved" | "Rejected" | "Removed";
+    date: string;
+    requestId?: string;
+  }
+
+  function statusBadgeClass(status: string): string {
+    switch (status) {
+      case "Active": return "active";
+      case "Requested": return "pending";
+      case "Approved": return "active";
+      case "Rejected": return "inactive";
+      case "Removed": return "inactive";
+      default: return "pending";
+    }
+  }
+
+  function renderProviderRow(p: ProviderEntry): string {
+    const flags = (p.jurisdictions || []).map((code) => {
+      const flag = code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      return `<span title="${escapeHtml(code)}">${flag}</span>`;
+    }).join(" ");
+    const d = new Date(p.date);
+    const dateStr = d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    const fullDate = d.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    return `
+      <tr class="provider-row" data-status="${escapeHtml(p.status)}" data-request-id="${escapeHtml(p.requestId || "")}" data-pk="${escapeHtml(p.publicKey)}" style="position:relative">
+        <td>${escapeHtml(p.label || truncateAddress(p.publicKey))}</td>
+        <td>${escapeHtml(p.contactEmail || "-")}</td>
+        <td>${flags || "-"}</td>
+        <td title="${escapeHtml(fullDate)}">${escapeHtml(dateStr)}</td>
+        <td>
+          <span class="badge badge-${statusBadgeClass(p.status)}">${escapeHtml(p.status)}</span>
+        </td>
+      </tr>
+    `;
+  }
+
+  function renderProvidersList(entries: ProviderEntry[]) {
+    if (entries.length === 0) {
+      providersList.innerHTML = `<p style="color:var(--text-muted)">No providers yet. Share the invite link to get started.</p>`;
+      return;
+    }
+
+    providersList.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Jurisdictions</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody>${entries.map(renderProviderRow).join("")}</tbody>
+      </table>
+      <div id="provider-action-popup" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.6rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);z-index:100;white-space:nowrap">
+        <button class="btn-link popup-approve" style="color:var(--active);font-size:0.8rem">Approve</button>
+        <button class="btn-link popup-reject" style="color:var(--inactive);font-size:0.8rem;margin-left:0.5rem">Reject</button>
+      </div>
+    `;
+
+    const popup = providersList.querySelector("#provider-action-popup") as HTMLDivElement;
+    let activeRowId: string | null = null;
+    let popupLocked = false;
+
+    // Hover to show popup on Requested rows
+    providersList.querySelectorAll(".provider-row[data-status='Requested']").forEach((row) => {
+      row.addEventListener("mouseenter", () => {
+        if (popupLocked) return;
+        activeRowId = (row as HTMLElement).dataset.requestId || null;
+        // Position directly on top of the status badge
+        const badge = row.querySelector(".badge") as HTMLElement;
+        const rect = badge ? badge.getBoundingClientRect() : (row as HTMLElement).getBoundingClientRect();
+        popup.style.top = `${rect.top}px`;
+        popup.style.left = `${rect.left}px`;
+        popup.style.display = "block";
+        popup.dataset.id = (row as HTMLElement).dataset.requestId || "";
+        popup.dataset.pk = (row as HTMLElement).dataset.pk || "";
+      });
+      row.addEventListener("mouseleave", (e) => {
+        if (popupLocked) return;
+        const related = (e as MouseEvent).relatedTarget as HTMLElement | null;
+        if (related && popup.contains(related)) return;
+        popup.style.display = "none";
+        activeRowId = null;
       });
     });
-  } else {
-    requestsList.innerHTML = `<p style="color:var(--text-muted)">No requests</p>`;
+
+    popup.addEventListener("mouseleave", (e) => {
+      if (popupLocked) return;
+      const related = (e as MouseEvent).relatedTarget as HTMLElement | null;
+      const activeRow = activeRowId ? providersList.querySelector(`[data-request-id="${CSS.escape(activeRowId)}"]`) : null;
+      if (related && activeRow?.contains(related)) return;
+      popup.style.display = "none";
+      activeRowId = null;
+    });
+
+    // Wire popup approve
+    const popupApprove = popup.querySelector(".popup-approve") as HTMLButtonElement;
+    const popupReject = popup.querySelector(".popup-reject") as HTMLButtonElement;
+
+    popupApprove.addEventListener("click", async () => {
+      const id = popup.dataset.id!;
+      const providerPk = popup.dataset.pk!;
+      popupLocked = true;
+      popupApprove.disabled = true;
+      popupReject.disabled = true;
+      popupApprove.textContent = "Accepting...";
+      try {
+        const { buildInvokeContractTx, submitTx } = await import("../lib/stellar.ts");
+        const { signTransaction } = await import("../lib/wallet.ts");
+        const stellar = await (await import("../lib/stellar.ts")).sdk();
+        const providerAddress = stellar.nativeToScVal(
+          stellar.Address.fromString(providerPk),
+          { type: "address" },
+        );
+
+        const txXdr = await buildInvokeContractTx(councilId!, "add_provider", [providerAddress], adminAddress);
+        const signedXdr = await signTransaction(txXdr);
+        await submitTx(signedXdr);
+
+        const { approveJoinRequest } = await import("../lib/platform.ts");
+        await approveJoinRequest(id);
+
+        const ppEntry = entries.find((e) => e.publicKey === providerPk);
+        if (ppEntry?.jurisdictions?.length && isPlatformAuthed()) {
+          const { addJurisdiction } = await import("../lib/platform.ts");
+          for (const code of ppEntry.jurisdictions) {
+            if (!jurisdictions.includes(code)) {
+              const label = COUNTRY_CODES.find((c) => c.code === code)?.label;
+              await addJurisdiction(councilId!, code, label).catch(() => {});
+            }
+          }
+        }
+
+        capture("council_join_request_approved", { requestId: id });
+        popupLocked = false;
+        popup.style.display = "none";
+        await loadProviders();
+      } catch (err) {
+        console.error("Failed to approve:", err);
+        popupApprove.textContent = "Failed";
+        popupApprove.disabled = false;
+        popupReject.disabled = false;
+        popupLocked = false;
+      }
+    });
+
+    popupReject.addEventListener("click", async () => {
+      const id = popup.dataset.id!;
+      if (!confirm("Reject this provider request?")) return;
+      popupLocked = true;
+      popupReject.disabled = true;
+      popupApprove.disabled = true;
+      try {
+        const { rejectJoinRequest } = await import("../lib/platform.ts");
+        await rejectJoinRequest(id);
+        capture("council_join_request_rejected", { requestId: id });
+        popupLocked = false;
+        popup.style.display = "none";
+        await loadProviders();
+      } catch (err) {
+        console.error("Failed to reject:", err);
+        popupReject.textContent = "Failed";
+        popupReject.disabled = false;
+        popupApprove.disabled = false;
+        popupLocked = false;
+      }
+    });
   }
+
+  async function loadProviders() {
+    const entries: ProviderEntry[] = [];
+
+    // Fetch join requests first (has richer data)
+    let requests: import("../lib/platform.ts").JoinRequest[] = [];
+    if (isPlatformAuthed()) {
+      try {
+        const { listJoinRequests } = await import("../lib/platform.ts");
+        requests = await listJoinRequests(councilId!);
+      } catch {
+        // Platform not available
+      }
+    }
+
+    // Build a lookup from join requests by publicKey
+    const requestByKey = new Map<string, import("../lib/platform.ts").JoinRequest>();
+    for (const r of requests) {
+      requestByKey.set(r.publicKey, r);
+    }
+
+    // Active providers from council state — enrich with join request data
+    for (const p of providers) {
+      const req = requestByKey.get(p.publicKey);
+      entries.push({
+        publicKey: p.publicKey,
+        label: req?.label || p.label || null,
+        contactEmail: req?.contactEmail || null,
+        jurisdictions: req?.jurisdictions || null,
+        status: "Active",
+        date: req?.reviewedAt || req?.createdAt || new Date().toISOString(),
+        requestId: req?.id,
+      });
+    }
+
+    // Add non-active join requests (Requested, Rejected)
+    for (const r of requests) {
+      if (entries.some((e) => e.publicKey === r.publicKey)) continue;
+
+      let status: ProviderEntry["status"];
+      let date = r.createdAt;
+      if (r.status === "PENDING") {
+        status = "Requested";
+      } else if (r.status === "APPROVED") {
+        status = "Active";
+        date = r.reviewedAt || r.createdAt;
+      } else {
+        status = "Rejected";
+        date = r.reviewedAt || r.createdAt;
+      }
+
+      entries.push({
+        publicKey: r.publicKey,
+        label: r.label,
+        contactEmail: r.contactEmail,
+        jurisdictions: r.jurisdictions,
+        status,
+        date,
+        requestId: r.id,
+      });
+    }
+
+    entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    renderProvidersList(entries);
+  }
+
+  loadProviders();
 
   // --- Deploy new asset ---
   const deployBtn = el.querySelector("#deploy-asset-btn") as HTMLButtonElement;
@@ -310,13 +525,13 @@ async function renderContent(): Promise<HTMLElement> {
     // Tier 1: Check platform DB — already active or disabled?
     if (isPlatformConfigured() && isPlatformAuthed()) {
       try {
-        const active = await listChannels();
+        const active = await listChannels(councilId!);
         if (active.find((ch) => ch.assetCode.toUpperCase() === assetCode.toUpperCase())) {
           modal.hidden = true;
           navigate(`/council?id=${encodeURIComponent(councilId)}`, { force: true });
           return;
         }
-        const disabled = await listDisabledChannels();
+        const disabled = await listDisabledChannels(councilId!);
         const match = disabled.find((ch) => ch.assetCode.toUpperCase() === assetCode.toUpperCase());
         if (match) {
           await enableChannel(match.id);
@@ -353,7 +568,7 @@ async function renderContent(): Promise<HTMLElement> {
         // Found it — register with platform
         if (isPlatformAuthed()) {
           const sacId = await getAssetContractId(assetCode, assetIssuer || undefined);
-          await registerChannel({ channelContractId: derivedAddress, assetCode, assetContractId: sacId, issuerAddress: assetIssuer, label: `${assetCode} Privacy Channel` });
+          await registerChannel(councilId!, { channelContractId: derivedAddress, assetCode, assetContractId: sacId, issuerAddress: assetIssuer, label: `${assetCode} Privacy Channel` });
         }
         capture("council_asset_found", { assetCode, channelId: derivedAddress });
         modal.hidden = true;
@@ -406,7 +621,7 @@ async function renderContent(): Promise<HTMLElement> {
       // Register on platform
       if (isPlatformAuthed()) {
         try {
-          await registerChannel({ channelContractId: newChannelId, assetCode, assetContractId, issuerAddress: assetIssuer, label: `${assetCode} Privacy Channel` });
+          await registerChannel(councilId!, { channelContractId: newChannelId, assetCode, assetContractId, issuerAddress: assetIssuer, label: `${assetCode} Privacy Channel` });
         } catch { /* best effort */ }
       }
 

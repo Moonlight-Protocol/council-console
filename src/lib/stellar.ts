@@ -16,6 +16,8 @@ interface StellarSdkSubset {
   };
   Operation: {
     invokeHostFunction(opts: { func: unknown; auth: unknown[] }): unknown;
+    createAccount(opts: { destination: string; startingBalance: string }): unknown;
+    payment(opts: { destination: string; asset: unknown; amount: string }): unknown;
   };
   Contract: new (id: string) => { call(fn: string, ...args: unknown[]): unknown };
   Address: { fromString(addr: string): { toScAddress(): unknown }; fromScVal(val: unknown): { toString(): string } };
@@ -169,6 +171,17 @@ export async function buildInstallWasmTx(
  * (e.g. two different USDC issuers). For native XLM, issuer is empty string.
  * Suffix is reserved for future use (e.g. version, sequence).
  */
+/**
+ * Compute a deterministic salt for council (Channel Auth) deployment.
+ * salt = SHA-256(adminAddress + ":council:" + index)
+ * Enables recovery — the same wallet + index always produces the same council address.
+ */
+export async function computeCouncilSalt(adminAddress: string, index: number): Promise<Uint8Array> {
+  const data = new TextEncoder().encode(`${adminAddress}:council:${index}`);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return new Uint8Array(hash);
+}
+
 export async function computeDeploySalt(channelAuthId: string, assetCode: string, issuerAddress = "", suffix = ""): Promise<Uint8Array> {
   const data = new TextEncoder().encode(`${channelAuthId}:${assetCode}:${issuerAddress}:${suffix}`);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -346,6 +359,62 @@ export async function getAccountBalance(publicKey: string): Promise<{ xlm: strin
     return { xlm: native?.balance ?? "0", funded: true };
   } catch {
     return { xlm: "0", funded: false };
+  }
+}
+
+/**
+ * Build a transaction to fund the treasury (OpEx) account.
+ * Uses createAccount if the account doesn't exist yet, or payment if it does.
+ * Returns the XDR string for wallet signing.
+ */
+export async function buildFundTreasuryTx(
+  sourcePublicKey: string,
+  destinationPublicKey: string,
+  amountXlm: string,
+): Promise<string> {
+  const stellar = await sdk();
+  const { TransactionBuilder, Operation, Asset } = stellar;
+  const server = await getRpcServer();
+
+  const account = await server.getAccount(sourcePublicKey);
+
+  // Check if destination account exists
+  const { funded } = await getAccountBalance(destinationPublicKey);
+
+  const op = funded
+    ? Operation.payment({
+        destination: destinationPublicKey,
+        asset: Asset.native(),
+        amount: amountXlm,
+      })
+    : Operation.createAccount({
+        destination: destinationPublicKey,
+        startingBalance: amountXlm,
+      });
+
+  const tx = new TransactionBuilder(account, {
+    fee: "100000",
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(op)
+    .setTimeout(30)
+    .build();
+
+  return tx.toXDR();
+}
+
+/**
+ * Submit a signed transaction via Horizon (for non-contract operations like payments).
+ */
+export async function submitHorizonTx(signedXdr: string): Promise<void> {
+  const res = await fetch(`${HORIZON_URL}/transactions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `tx=${encodeURIComponent(signedXdr)}`,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.extras?.result_codes?.operations?.[0] || err.title || `Transaction failed: ${res.status}`);
   }
 }
 

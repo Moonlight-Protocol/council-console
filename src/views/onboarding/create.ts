@@ -12,6 +12,7 @@ import {
   pushMetadata,
   addJurisdiction,
   registerChannel,
+  listCouncils,
 } from "../../lib/platform.ts";
 
 const PROGRESS_KEY = "council_create_progress";
@@ -23,6 +24,7 @@ interface CreateProgress {
   channelWasmHash?: string;    // hex-encoded
   privacyChannelId?: string;
   assetContractId?: string;
+  councilIndex?: number;        // derivation index used for this council
   step: number;                // 0-4 (0 = not started, 4 = done)
 }
 
@@ -79,7 +81,7 @@ function renderStep(): HTMLElement {
   }).join("");
 
   el.innerHTML = `
-    <h2>Create your council</h2>
+    <h2>Council</h2>
     <p style="color:var(--text-muted);margin-bottom:1.5rem">
       This will set up your Council. We need you to approve <strong>4 transactions</strong> (2 per step).
     </p>
@@ -170,14 +172,49 @@ function renderStep(): HTMLElement {
       if (p.step < 2) {
         await withSpan("create.deploy_auth", traceId, async () => {
           const adminScVal = nativeToScVal(Address.fromString(adminAddress), { type: "address" });
-          // Channel Auth uses a random salt — each council from the same wallet
-          // must have a unique address, and we don't need to derive it later
-          // (the user always knows their Channel Auth address).
-          const deployXdr = await buildDeployContractTx(hexToBytes(p.authWasmHash!), adminAddress, [adminScVal]);
+          // Find the next available council index by scanning DB + on-chain
+          const { computeCouncilSalt, deriveContractAddress, sdk: getSdk, getRpcServer } = await import("../../lib/stellar.ts");
+          const { getNetworkPassphrase } = await import("../../lib/config.ts");
+          const stellar = await getSdk();
+          const server = await getRpcServer();
+
+          const usedAddresses = new Set<string>();
+          if (isPlatformConfigured() && isPlatformAuthed()) {
+            try {
+              const active = await listCouncils();
+              for (const c of active) usedAddresses.add(c.councilId);
+            } catch { /* platform unavailable */ }
+          }
+
+          // Sequential RPC calls to find the first unused derivation index.
+          // Up to MAX_SCAN calls is acceptable here — this only runs once during
+          // onboarding, not on every page load.
+          let councilIndex = 0;
+          const MAX_SCAN = 20;
+          for (; councilIndex < MAX_SCAN; councilIndex++) {
+            const testSalt = await computeCouncilSalt(adminAddress, councilIndex);
+            const testAddr = await deriveContractAddress(adminAddress, testSalt);
+            if (usedAddresses.has(testAddr)) continue;
+            // Check on-chain — try to call admin() on the derived address
+            try {
+              const contract = new stellar.Contract(testAddr);
+              const account = await server.getAccount(adminAddress);
+              const tx = new stellar.TransactionBuilder(account, { fee: "100", networkPassphrase: getNetworkPassphrase() })
+                .addOperation(contract.call("admin"))
+                .setTimeout(30)
+                .build();
+              const sim = await server.simulateTransaction(tx);
+              if (!("error" in sim && sim.error)) continue; // contract exists, skip
+            } catch { /* not found — available */ }
+            break;
+          }
+          const councilSalt = await computeCouncilSalt(adminAddress, councilIndex);
+          const deployXdr = await buildDeployContractTx(hexToBytes(p.authWasmHash!), adminAddress, [adminScVal], councilSalt);
           const deploySigned = await signTransaction(deployXdr);
           const { contractId } = await submitTx(deploySigned);
           if (!contractId) throw new Error("Failed to create council");
           p.channelAuthId = contractId;
+          p.councilIndex = councilIndex;
           p.step = 2;
           saveProgress(p);
         });
@@ -220,27 +257,28 @@ function renderStep(): HTMLElement {
         markStep(1, "done");
       }
 
-      // Store the council ID so subsequent onboarding steps can find the right council
+      // Store the council ID and index so subsequent onboarding steps can find the right council
       sessionStorage.setItem("onboarding_council_id", p.channelAuthId!);
+      sessionStorage.setItem("onboarding_council_index", String(p.councilIndex ?? 0));
 
       // Push metadata, jurisdictions, and XLM channel to platform (uses existing JWT from login)
       if (isPlatformConfigured() && isPlatformAuthed()) {
         try {
           if (metadata?.name) {
             await pushMetadata({
+              councilId: p.channelAuthId!,
               name: metadata.name,
               description: metadata.description || undefined,
               contactEmail: metadata.contactEmail || undefined,
-              channelAuthId: p.channelAuthId!,
             });
           }
           if (metadata?.jurisdictions) {
             for (const code of metadata.jurisdictions) {
               const entry = COUNTRY_CODES.find((c: { code: string }) => c.code === code);
-              await addJurisdiction(code, entry?.label);
+              await addJurisdiction(p.channelAuthId!, code, entry?.label);
             }
           }
-          await registerChannel({
+          await registerChannel(p.channelAuthId!, {
             channelContractId: p.privacyChannelId!,
             assetCode: "XLM",
             assetContractId: p.assetContractId!,
@@ -252,12 +290,12 @@ function renderStep(): HTMLElement {
         }
       }
 
-      clearFormDraft("metadata");
+      // Don't clear metadata draft yet — the fund step needs it for the name
       capture("council_created", { channelAuthId: p.channelAuthId, privacyChannelId: p.privacyChannelId });
       clearProgress();
 
       createBtn.hidden = true;
-      setTimeout(() => navigate("/create-council/assets"), 1000);
+      setTimeout(() => navigate("/create-council/fund"), 1000);
     } catch (error) {
       const msg = friendlyError(error);
       capture("council_create_failed", { error: msg });

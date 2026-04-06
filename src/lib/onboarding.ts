@@ -6,11 +6,11 @@ import { PLATFORM_URL } from "./config.ts";
 import { getConnectedAddress } from "./wallet.ts";
 
 export const ONBOARDING_STEPS = [
-  { id: "metadata", label: "Council Info" },
-  { id: "fund", label: "Fund Account" },
-  { id: "create", label: "Create Council" },
-  { id: "assets", label: "Enable Assets" },
-  { id: "invite", label: "Done" },
+  { id: "metadata", label: "Council" },
+  { id: "create", label: "Council" },
+  { id: "fund", label: "Treasury" },
+  { id: "assets", label: "Assets" },
+  { id: "invite", label: "Providers" },
 ] as const;
 
 export type OnboardingStepId = typeof ONBOARDING_STEPS[number]["id"];
@@ -27,14 +27,15 @@ export interface CouncilState {
   providers: Array<{ publicKey: string; label?: string }>;
 }
 
-/** Fetch the current council state from the platform. */
-export async function fetchCouncilState(): Promise<CouncilState> {
+/** Fetch a council's state from the platform. */
+export async function fetchCouncilState(councilId?: string): Promise<CouncilState> {
   if (!PLATFORM_URL) {
     return { exists: false, channels: [], jurisdictions: [], providers: [] };
   }
 
   try {
-    const res = await fetch(`${PLATFORM_URL}/api/v1/public/council`);
+    const qs = councilId ? `?councilId=${encodeURIComponent(councilId)}` : "";
+    const res = await fetch(`${PLATFORM_URL}/api/v1/public/council${qs}`);
     if (!res.ok) {
       return { exists: false, channels: [], jurisdictions: [], providers: [] };
     }
