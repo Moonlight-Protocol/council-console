@@ -19,10 +19,11 @@ jobs:
           cat > public/config.js << EOF
           window.__CONSOLE_CONFIG__ = {
             environment: "production",
-            stellarNetwork: "testnet",
-            rpcUrl: "https://soroban-testnet.stellar.org",
-            horizonUrl: "https://horizon-testnet.stellar.org",
-            friendbotUrl: "https://friendbot.stellar.org",
+            stellarNetwork: "${{ secrets.STELLAR_NETWORK }}",
+            rpcUrl: "${{ secrets.RPC_URL }}",
+            horizonUrl: "${{ secrets.HORIZON_URL }}",
+            friendbotUrl: "${{ secrets.FRIENDBOT_URL }}",
+            platformUrl: "${{ secrets.PLATFORM_URL }}",
             posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
             posthogHost: "https://us.i.posthog.com",
             otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
