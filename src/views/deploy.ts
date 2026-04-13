@@ -237,7 +237,7 @@ function renderContent(): HTMLElement {
         buildInstallWasmTx,
         buildDeployContractTx,
         submitTx,
-        getAssetContractId,
+        ensureSacDeployed,
         sdk: getSdk,
       } = await import("../lib/stellar.ts");
       const { nativeToScVal, Address } = await getSdk();
@@ -292,7 +292,7 @@ function renderContent(): HTMLElement {
       setStep("step-deploy-channel", "active");
       let privacyChannelId!: string;
       await withSpan("deploy.deploy_privacy_channel", traceId, async () => {
-        const assetAddress = await getAssetContractId(assetCode, assetIssuer || undefined);
+        const assetAddress = await ensureSacDeployed(assetCode, assetIssuer || undefined, adminAddress, signTransaction);
         const channelArgs = [
           nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
           nativeToScVal(Address.fromString(channelAuthId), { type: "address" }),

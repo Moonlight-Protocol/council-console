@@ -584,12 +584,12 @@ async function renderContent(): Promise<HTMLElement> {
 
     const { traceId } = startTrace();
     try {
-      const { fetchWasm, buildInstallWasmTx, buildDeployContractTx, computeDeploySalt, submitTx, getAssetContractId, sdk: getSdk } = await import("../lib/stellar.ts");
+      const { fetchWasm, buildInstallWasmTx, buildDeployContractTx, computeDeploySalt, submitTx, ensureSacDeployed, sdk: getSdk } = await import("../lib/stellar.ts");
       const { nativeToScVal, Address } = await getSdk();
       const { signTransaction } = await import("../lib/wallet.ts");
 
       const progressEl = el.querySelector("#astep-progress") as HTMLDivElement;
-      progressEl.textContent = `Enabling ${assetCode} (1/2)`;
+      progressEl.textContent = `Enabling ${assetCode}...`;
       progressEl.className = "deploy-step deploy-step-active";
       let channelWasmHash!: Uint8Array;
       await withSpan("asset.install_wasm", traceId, async () => {
@@ -598,12 +598,11 @@ async function renderContent(): Promise<HTMLElement> {
         channelWasmHash = wasmHash;
         await submitTx(await signTransaction(xdr));
       });
-      progressEl.textContent = `Enabling ${assetCode} (2/2)`;
 
       let newChannelId!: string;
       let assetContractId!: string;
       await withSpan("asset.deploy_channel", traceId, async () => {
-        assetContractId = await getAssetContractId(assetCode, assetIssuer || undefined);
+        assetContractId = await ensureSacDeployed(assetCode, assetIssuer || undefined, admin, signTransaction);
         const args = [
           nativeToScVal(Address.fromString(admin), { type: "address" }),
           nativeToScVal(Address.fromString(councilId), { type: "address" }),

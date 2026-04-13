@@ -98,7 +98,7 @@ function renderStep(): HTMLElement {
         buildDeployContractTx,
         computeDeploySalt,
         submitTx,
-        getAssetContractId,
+        ensureSacDeployed,
         sdk: getSdk,
       } = await import("../../lib/stellar.ts");
       const { nativeToScVal, Address } = await getSdk();
@@ -113,9 +113,7 @@ function renderStep(): HTMLElement {
         const installSigned = await signTransaction(installXdr);
         await submitTx(installSigned);
 
-        stepEl.textContent = `Enabling ${assetCode} (2/2)...`;
-
-        assetContractId = await getAssetContractId(assetCode, assetIssuer);
+        assetContractId = await ensureSacDeployed(assetCode, assetIssuer, adminAddress, signTransaction);
         const args = [
           nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
           nativeToScVal(Address.fromString(councilId), { type: "address" }),

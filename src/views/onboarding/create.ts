@@ -147,7 +147,7 @@ function renderStep(): HTMLElement {
         buildDeployContractTx,
         computeDeploySalt,
         submitTx,
-        getAssetContractId,
+        ensureSacDeployed,
         sdk: getSdk,
       } = await import("../../lib/stellar.ts");
       const { nativeToScVal, Address } = await getSdk();
@@ -239,7 +239,7 @@ function renderStep(): HTMLElement {
       // Step 3: Deploy Privacy Channel
       if (p.step < 4) {
         await withSpan("create.deploy_channel", traceId, async () => {
-          p.assetContractId = await getAssetContractId("XLM");
+          p.assetContractId = await ensureSacDeployed("XLM", undefined, adminAddress, signTransaction);
           const channelArgs = [
             nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
             nativeToScVal(Address.fromString(p.channelAuthId!), { type: "address" }),
