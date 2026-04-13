@@ -16,6 +16,7 @@ interface StellarSdkSubset {
   };
   Operation: {
     invokeHostFunction(opts: { func: unknown; auth: unknown[] }): unknown;
+    createStellarAssetContract(opts: { asset: unknown }): unknown;
     createAccount(opts: { destination: string; startingBalance: string }): unknown;
     payment(opts: { destination: string; asset: unknown; amount: string }): unknown;
   };
@@ -48,6 +49,7 @@ interface XdrNamespace {
   }) => unknown;
   ContractIdPreimage: {
     contractIdPreimageFromAddress(preimage: unknown): unknown;
+    contractIdPreimageFromAsset(asset: unknown): unknown;
   };
   ContractIdPreimageFromAddress: new (opts: {
     address: unknown;
@@ -55,6 +57,21 @@ interface XdrNamespace {
   }) => unknown;
   ContractExecutable: {
     contractExecutableWasm(hash: unknown): unknown;
+    contractExecutableStellarAsset(): unknown;
+  };
+  LedgerKey: {
+    contractData(entry: unknown): unknown;
+  };
+  LedgerKeyContractData: new (opts: {
+    contract: unknown;
+    key: unknown;
+    durability: unknown;
+  }) => unknown;
+  ScVal: {
+    scvLedgerKeyContractInstance(): unknown;
+  };
+  ContractDataDurability: {
+    persistent(): unknown;
   };
 }
 
@@ -74,6 +91,7 @@ interface RpcServer {
   sendTransaction(tx: Transaction): Promise<{ hash: string }>;
   getTransaction(hash: string): Promise<TxResult>;
   getLatestLedger(): Promise<{ sequence: number }>;
+  getLedgerEntries(...keys: unknown[]): Promise<{ entries: unknown[] | null }>;
 }
 interface SimulationResult { error?: string }
 interface TxResult {
@@ -328,6 +346,62 @@ export async function submitTx(signedXdr: string): Promise<{ contractId: string 
 
   const contractId = extractContractIdFromEvents(status);
   return { contractId };
+}
+
+/**
+ * Check if a SAC exists on-chain and deploy it if not.
+ * Returns the SAC contract address.
+ */
+export async function ensureSacDeployed(
+  assetCode: string,
+  assetIssuer: string | undefined,
+  adminAddress: string,
+  signTransaction: (xdr: string) => Promise<string>,
+): Promise<string> {
+  const stellar = await sdk();
+  const { Asset, Address, TransactionBuilder, Operation, xdr, StrKey } = stellar;
+  const server = await getRpcServer();
+
+  const asset = (!assetIssuer || assetCode === "XLM")
+    ? Asset.native()
+    : new Asset(assetCode, assetIssuer);
+
+  const sacAddress = asset.contractId(NETWORK_PASSPHRASE);
+
+  // Check if the SAC contract instance exists on-chain
+  const ledgerKey = xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: Address.fromString(sacAddress).toScAddress(),
+      key: xdr.ScVal.scvLedgerKeyContractInstance(),
+      durability: xdr.ContractDataDurability.persistent(),
+    }),
+  );
+
+  const ledgerResult = await server.getLedgerEntries(ledgerKey);
+  if (ledgerResult.entries && ledgerResult.entries.length > 0) {
+    return sacAddress;
+  }
+
+  // SAC not deployed — deploy it
+  const account = await server.getAccount(adminAddress);
+  const tx = new TransactionBuilder(account, {
+    fee: "10000000",
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(Operation.createStellarAssetContract({ asset }))
+    .setTimeout(300)
+    .build();
+
+  const sim = await server.simulateTransaction(tx);
+  if ("error" in sim && sim.error) {
+    throw new Error(`SAC deploy simulation failed: ${sim.error}`);
+  }
+  const { assembleTransaction } = await rpc();
+  const prepared = assembleTransaction(tx, sim).build();
+  const signed = await signTransaction(prepared.toXDR());
+  await submitTx(signed);
+
+  return sacAddress;
 }
 
 /**
