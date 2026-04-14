@@ -2,7 +2,8 @@
  * Shared onboarding layout with progress stepper.
  * Shared onboarding layout — uses the same nav as the main app.
  */
-import { isAuthenticated } from "../../lib/wallet.ts";
+import { isAuthenticated, getConnectedAddress } from "../../lib/wallet.ts";
+import { isAllowed } from "../../lib/config.ts";
 import { navigate } from "../../lib/router.ts";
 import { renderNav } from "../../components/nav.ts";
 import { ONBOARDING_STEPS, type OnboardingStepId } from "../../lib/onboarding.ts";
@@ -12,7 +13,8 @@ export function onboardingPage(
   renderStep: () => HTMLElement | Promise<HTMLElement>,
 ): () => Promise<HTMLElement> {
   return async () => {
-    if (!isAuthenticated()) {
+    const addr = getConnectedAddress();
+    if (!isAuthenticated() || (addr && !isAllowed(addr))) {
       navigate("/login");
       return document.createElement("div");
     }
