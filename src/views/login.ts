@@ -6,7 +6,8 @@ import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { isAllowed, PLATFORM_URL } from "../lib/config.ts";
 
 export function loginView(): HTMLElement {
-  if (isAuthenticated() && isMasterSeedReady() && isPlatformAuthed()) {
+  const existingAddr = getConnectedAddress();
+  if (isAuthenticated() && isMasterSeedReady() && isPlatformAuthed() && (!existingAddr || isAllowed(existingAddr))) {
     navigate("/");
     return document.createElement("div");
   }
