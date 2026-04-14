@@ -7,7 +7,13 @@ import { isAllowed, PLATFORM_URL } from "../lib/config.ts";
 
 export function loginView(): HTMLElement {
   const existingAddr = getConnectedAddress();
-  if (isAuthenticated() && isMasterSeedReady() && isPlatformAuthed() && (!existingAddr || isAllowed(existingAddr))) {
+  if (isAuthenticated() && isMasterSeedReady() && isPlatformAuthed()) {
+    if (existingAddr && !isAllowed(existingAddr)) {
+      const container = document.createElement("div");
+      container.className = "login-container";
+      renderInviteOnly(container, existingAddr);
+      return container;
+    }
     navigate("/");
     return document.createElement("div");
   }
@@ -167,6 +173,6 @@ function renderInviteOnly(container: HTMLElement, address: string): void {
   container.querySelector("#disconnect-btn")?.addEventListener("click", () => {
     clearSession();
     clearPlatformAuth();
-    navigate("/login");
+    navigate("/login", { force: true });
   });
 }
