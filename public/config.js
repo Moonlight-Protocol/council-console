@@ -6,4 +6,5 @@ window.__CONSOLE_CONFIG__ = {
   horizonUrl: "http://localhost:8000",
   friendbotUrl: "http://localhost:8000/friendbot",
   platformUrl: "http://localhost:3015",
+  allowlist: ["*"],
 };

@@ -26,7 +26,8 @@ jobs:
             platformUrl: "${{ secrets.PLATFORM_URL }}",
             posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
             posthogHost: "https://us.i.posthog.com",
-            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
+            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}",
+            allowlist: ${{ secrets.ALLOWLIST }},
           };
           EOF
 
