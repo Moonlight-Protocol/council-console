@@ -1,6 +1,7 @@
 import { renderNav } from "./nav.ts";
-import { isAuthenticated, isMasterSeedReady } from "../lib/wallet.ts";
+import { isAuthenticated, isMasterSeedReady, getConnectedAddress } from "../lib/wallet.ts";
 import { isAuthenticated as isPlatformAuthed } from "../lib/platform.ts";
+import { isAllowed } from "../lib/config.ts";
 import { navigate } from "../lib/router.ts";
 
 /**
@@ -9,7 +10,8 @@ import { navigate } from "../lib/router.ts";
  */
 export function page(renderContent: () => HTMLElement | Promise<HTMLElement>): () => Promise<HTMLElement> {
   return async () => {
-    if (!isAuthenticated() || !isMasterSeedReady() || !isPlatformAuthed()) {
+    const addr = getConnectedAddress();
+    if (!isAuthenticated() || !isMasterSeedReady() || !isPlatformAuthed() || (addr && !isAllowed(addr))) {
       navigate("/login");
       return document.createElement("div");
     }

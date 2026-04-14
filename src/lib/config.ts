@@ -14,6 +14,7 @@ declare global {
       posthogKey?: string;
       posthogHost?: string;
       otelEndpoint?: string;
+      allowlist?: string[];
     };
   }
 }
@@ -30,6 +31,11 @@ export const POSTHOG_KEY = config.posthogKey ?? "";
 export const POSTHOG_HOST = config.posthogHost ?? "https://us.i.posthog.com";
 export const PLATFORM_URL = config.platformUrl ?? "";
 export const OTEL_ENDPOINT = config.otelEndpoint ?? "";
+
+export function isAllowed(address: string): boolean {
+  const list = config.allowlist ?? [];
+  return list.includes("*") || list.includes(address);
+}
 
 export function getNetworkPassphrase(): string {
   switch (STELLAR_NETWORK) {

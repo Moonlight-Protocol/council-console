@@ -15,6 +15,8 @@ jobs:
           deno-version: v2.x
 
       - name: Generate production config
+        env:
+          ALLOWLIST: ${{ secrets.ALLOWLIST || '["*"]' }}
         run: |
           cat > public/config.js << EOF
           window.__CONSOLE_CONFIG__ = {
@@ -26,7 +28,8 @@ jobs:
             platformUrl: "${{ secrets.PLATFORM_URL }}",
             posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
             posthogHost: "https://us.i.posthog.com",
-            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
+            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}",
+            allowlist: $ALLOWLIST,
           };
           EOF
 
