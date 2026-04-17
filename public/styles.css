@@ -308,6 +308,9 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
 
 /* Jurisdiction picker */
 .jurisdiction-picker {
+  position: relative;
+}
+.jurisdiction-picker .jurisdiction-dropdown {
   position: absolute;
   left: 0;
   right: 0;
@@ -318,6 +321,10 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
   max-height: 200px;
   overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: none;
+}
+.jurisdiction-picker.open .jurisdiction-dropdown {
+  display: block;
 }
 
 .jurisdiction-list { padding: 0.25rem 0; }

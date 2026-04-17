@@ -297,7 +297,21 @@ function renderStep(): HTMLElement {
       createBtn.hidden = true;
       setTimeout(() => navigate("/create-council/fund"), 1000);
     } catch (error) {
-      const msg = friendlyError(error);
+      let msg = friendlyError(error);
+      // Check if the error is due to an unfunded account
+      const errStr = error instanceof Error ? error.message : String(error);
+      if (errStr.includes("not found") || errStr.includes("404")) {
+        try {
+          const { getAccountBalance } = await import("../../lib/stellar.ts");
+          const addr = getConnectedAddress();
+          if (addr) {
+            const { funded } = await getAccountBalance(addr);
+            if (!funded) {
+              msg = "Your wallet account is not funded. Please add XLM to your wallet before creating a council.";
+            }
+          }
+        } catch { /* ignore balance check errors */ }
+      }
       capture("council_create_failed", { error: msg });
       if (p.step < 4) markStep(p.step < 2 ? 0 : 1, "error");
       errorEl.textContent = msg;

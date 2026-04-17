@@ -1,12 +1,13 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
+import { PLATFORM_URL } from "../../lib/config.ts";
 
 function renderStep(): HTMLElement {
   const el = document.createElement("div");
-
   const councilId = sessionStorage.getItem("onboarding_council_id") || "";
-  const baseUrl = `${window.location.origin}${window.location.pathname}#/join`;
-  const inviteLink = councilId ? `${baseUrl}?council=${councilId}` : baseUrl;
+  const inviteLink = councilId
+    ? `${PLATFORM_URL}?council=${councilId}`
+    : PLATFORM_URL;
 
   el.innerHTML = `
     <h2>Privacy Providers</h2>

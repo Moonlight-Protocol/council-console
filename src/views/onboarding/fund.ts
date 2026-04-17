@@ -1,7 +1,6 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
-import { deriveOpExKeypair, getConnectedAddress, isMasterSeedReady, initMasterSeed } from "../../lib/wallet.ts";
-import { escapeHtml } from "../../lib/dom.ts";
+import { deriveOpExKeypair, getConnectedAddress } from "../../lib/wallet.ts";
 
 function renderStep(): HTMLElement {
   const el = document.createElement("div");
@@ -13,17 +12,11 @@ function renderStep(): HTMLElement {
       Your council needs a treasury account to cover operational fees on the network.
     </p>
 
-    <div id="treasury-create">
-      <div class="stat-card" style="margin-bottom:1.5rem">
-        <span class="stat-label">Treasury Account</span>
-        <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">
-          We'll create a treasury account for your council. You'll be asked to sign a message to generate the account.
-        </p>
-        <button id="derive-btn" class="btn-primary" style="margin-top:0.75rem">Create Treasury Account</button>
-      </div>
+    <div id="treasury-loading">
+      <p style="color:var(--text-muted)">Deriving treasury account...</p>
     </div>
 
-    <div id="treasury-info" hidden>
+    <div id="treasury-content" hidden>
       <div class="stat-card" id="treasury-card" style="margin-bottom:1.5rem">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="stat-label">Treasury</span>
@@ -32,7 +25,7 @@ function renderStep(): HTMLElement {
             <button class="icon-btn refresh-balance" title="Refresh balance"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
           </div>
         </div>
-        <span id="treasury-address" hidden></span>
+        <div id="treasury-address" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;word-break:break-all"></div>
         <span id="treasury-balance" class="stat-value" style="font-size:1.25rem;display:block;margin-top:0.5rem">0.00 XLM</span>
       </div>
 
@@ -49,22 +42,20 @@ function renderStep(): HTMLElement {
     </div>
 
     <p id="fund-error" class="error-text" hidden></p>
-    <p id="fund-status" class="hint-text" hidden></p>
 
     <div style="margin-top:1.5rem">
       <button id="next-btn" class="btn-primary btn-wide" disabled>Next</button>
     </div>
   `;
 
-  const createEl = el.querySelector("#treasury-create") as HTMLDivElement;
-  const infoEl = el.querySelector("#treasury-info") as HTMLDivElement;
+  const loadingEl = el.querySelector("#treasury-loading") as HTMLDivElement;
+  const contentEl = el.querySelector("#treasury-content") as HTMLDivElement;
   const treasuryCard = el.querySelector("#treasury-card") as HTMLDivElement;
   const fundCard = el.querySelector("#fund-card") as HTMLDivElement;
-  const addressEl = el.querySelector("#treasury-address") as HTMLSpanElement;
+  const addressEl = el.querySelector("#treasury-address") as HTMLDivElement;
   const balanceEl = el.querySelector("#treasury-balance") as HTMLSpanElement;
   const nextBtn = el.querySelector("#next-btn") as HTMLButtonElement;
   const errorEl = el.querySelector("#fund-error") as HTMLParagraphElement;
-  const statusEl = el.querySelector("#fund-status") as HTMLParagraphElement;
 
   let opexPublicKey = sessionStorage.getItem("onboarding_opex_pk") || "";
 
@@ -90,37 +81,35 @@ function renderStep(): HTMLElement {
   }
 
   function showTreasuryInfo() {
-    createEl.hidden = true;
-    infoEl.hidden = false;
+    loadingEl.hidden = true;
+    contentEl.hidden = false;
     addressEl.textContent = opexPublicKey;
     checkBalance();
   }
 
+  // Auto-derive on load
   if (opexPublicKey) {
     showTreasuryInfo();
+  } else {
+    (async () => {
+      try {
+        const councilIndex = parseInt(
+          sessionStorage.getItem("onboarding_council_index") || "0",
+          10,
+        );
+        const { publicKey } = await deriveOpExKeypair(councilIndex);
+        opexPublicKey = publicKey;
+        sessionStorage.setItem("onboarding_opex_pk", publicKey);
+        showTreasuryInfo();
+      } catch (err) {
+        loadingEl.hidden = true;
+        errorEl.hidden = false;
+        errorEl.textContent = err instanceof Error
+          ? err.message
+          : "Failed to derive treasury account";
+      }
+    })();
   }
-
-  // Create treasury account
-  el.querySelector("#derive-btn")?.addEventListener("click", async () => {
-    const btn = el.querySelector("#derive-btn") as HTMLButtonElement;
-    btn.disabled = true;
-    btn.textContent = "Deriving treasury account...";
-    errorEl.hidden = true;
-
-    try {
-      if (!councilId) throw new Error("Council ID not found. Please go back to the Create step.");
-      const councilIndex = parseInt(sessionStorage.getItem("onboarding_council_index") || "0", 10);
-      const { publicKey } = await deriveOpExKeypair(councilIndex);
-      opexPublicKey = publicKey;
-      sessionStorage.setItem("onboarding_opex_pk", publicKey);
-      showTreasuryInfo();
-    } catch (err) {
-      btn.textContent = "Create Treasury Account";
-      btn.disabled = false;
-      errorEl.textContent = err instanceof Error ? err.message : "Failed to create treasury account";
-      errorEl.hidden = false;
-    }
-  });
 
   // Copy address
   el.querySelector(".copy-treasury")?.addEventListener("click", () => {
@@ -129,14 +118,19 @@ function renderStep(): HTMLElement {
       const btn = el.querySelector(".copy-treasury") as HTMLButtonElement;
       const orig = btn.innerHTML;
       btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
-      setTimeout(() => { btn.innerHTML = orig; }, 1500);
+      setTimeout(() => {
+        btn.innerHTML = orig;
+      }, 1500);
     });
   });
 
-  // Refresh balance icon
-  el.querySelector(".refresh-balance")?.addEventListener("click", () => checkBalance());
+  // Refresh balance
+  el.querySelector(".refresh-balance")?.addEventListener(
+    "click",
+    () => checkBalance(),
+  );
 
-  // Fund treasury via wallet payment
+  // Fund treasury
   el.querySelector("#fund-btn")?.addEventListener("click", async () => {
     const fundBtn = el.querySelector("#fund-btn") as HTMLButtonElement;
     const amountInput = el.querySelector("#fund-amount") as HTMLInputElement;
@@ -156,18 +150,22 @@ function renderStep(): HTMLElement {
       const adminAddress = getConnectedAddress();
       if (!adminAddress) throw new Error("Wallet not connected");
 
-      const { buildFundTreasuryTx, submitHorizonTx } = await import("../../lib/stellar.ts");
+      const { buildFundTreasuryTx, submitHorizonTx } = await import(
+        "../../lib/stellar.ts"
+      );
       const { signTransaction } = await import("../../lib/wallet.ts");
 
-      const txXdr = await buildFundTreasuryTx(adminAddress, opexPublicKey, amount);
+      const txXdr = await buildFundTreasuryTx(
+        adminAddress,
+        opexPublicKey,
+        amount,
+      );
       fundBtn.textContent = "Sign in wallet...";
       const signedXdr = await signTransaction(txXdr);
       fundBtn.textContent = "Submitting...";
       await submitHorizonTx(signedXdr);
 
       fundBtn.textContent = "Funded!";
-      statusEl.textContent = "Treasury funded!";
-      statusEl.hidden = false;
       await checkBalance();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -184,10 +182,18 @@ function renderStep(): HTMLElement {
     nextBtn.disabled = true;
     nextBtn.textContent = "Saving...";
     try {
-      // Push OpEx keys to platform
-      const { pushMetadata, isPlatformConfigured, isAuthenticated: isPlatformAuthed } = await import("../../lib/platform.ts");
-      const { getFormDraft, clearFormDraft } = await import("../../lib/onboarding.ts");
-      if (isPlatformConfigured() && isPlatformAuthed() && councilId && opexPublicKey) {
+      const {
+        pushMetadata,
+        isPlatformConfigured,
+        isAuthenticated: isPlatformAuthed,
+      } = await import("../../lib/platform.ts");
+      const { getFormDraft, clearFormDraft } = await import(
+        "../../lib/onboarding.ts"
+      );
+      if (
+        isPlatformConfigured() && isPlatformAuthed() && councilId &&
+        opexPublicKey
+      ) {
         const metadata = getFormDraft("metadata") as { name?: string } | null;
         await pushMetadata({
           councilId,
@@ -198,7 +204,9 @@ function renderStep(): HTMLElement {
       }
       navigate("/create-council/assets");
     } catch (err) {
-      errorEl.textContent = err instanceof Error ? err.message : "Failed to save treasury";
+      errorEl.textContent = err instanceof Error
+        ? err.message
+        : "Failed to save treasury";
       errorEl.hidden = false;
       nextBtn.disabled = false;
       nextBtn.textContent = "Next";
