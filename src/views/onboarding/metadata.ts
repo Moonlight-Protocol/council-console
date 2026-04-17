@@ -39,10 +39,11 @@ function renderStep(): HTMLElement {
     <div class="form-group">
       <label>Jurisdictions</label>
       <div id="jurisdiction-tags" class="jurisdiction-tags"></div>
-      <div class="jurisdiction-picker">
-        <input type="text" id="jurisdiction-filter" placeholder="Search countries..."
-          style="border:none;border-bottom:1px solid var(--border);border-radius:0;position:sticky;top:0;background:var(--bg);z-index:1" />
-        <div id="jurisdiction-list" class="jurisdiction-list"></div>
+      <div class="jurisdiction-picker" id="jurisdiction-picker">
+        <input type="text" id="jurisdiction-filter" placeholder="Search countries..." />
+        <div class="jurisdiction-dropdown">
+          <div id="jurisdiction-list" class="jurisdiction-list"></div>
+        </div>
       </div>
     </div>
 
@@ -61,6 +62,13 @@ function renderStep(): HTMLElement {
   const tagsEl = el.querySelector("#jurisdiction-tags") as HTMLDivElement;
   const listEl = el.querySelector("#jurisdiction-list") as HTMLDivElement;
   const filterEl = el.querySelector("#jurisdiction-filter") as HTMLInputElement;
+  const pickerEl = el.querySelector("#jurisdiction-picker") as HTMLDivElement;
+
+  filterEl.addEventListener("focus", () => pickerEl.classList.add("open"));
+  filterEl.addEventListener("blur", () => {
+    // Delay to allow click on option to register before hiding
+    setTimeout(() => pickerEl.classList.remove("open"), 200);
+  });
 
   function renderTags() {
     tagsEl.innerHTML = "";

@@ -1,4 +1,5 @@
 import { page } from "../components/page.ts";
+import { PLATFORM_URL } from "../lib/config.ts";
 import { escapeHtml } from "../lib/dom.ts";
 import { deleteCouncil, listCouncils } from "../lib/platform.ts";
 import { navigate } from "../lib/router.ts";
@@ -66,7 +67,7 @@ async function renderContent(): Promise<HTMLElement> {
     states.push(...results);
   }
 
-  const baseUrl = `${window.location.origin}${window.location.pathname}#/join`;
+  const baseUrl = PLATFORM_URL;
 
   const rows = states.map(({ councilId, state }) => {
     const inviteLink = `${baseUrl}?council=${councilId}`;

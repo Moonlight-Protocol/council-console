@@ -1,4 +1,5 @@
 import { page } from "../components/page.ts";
+import { PLATFORM_URL } from "../lib/config.ts";
 import { escapeHtml, truncateAddress, friendlyError } from "../lib/dom.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
@@ -199,8 +200,9 @@ async function renderContent(): Promise<HTMLElement> {
   });
 
   // --- Copy buttons ---
-  const baseInviteUrl = `${window.location.origin}${window.location.pathname}#/join`;
-  const councilInviteLink = councilId ? `${baseInviteUrl}?council=${councilId}` : baseInviteUrl;
+  const councilInviteLink = councilId
+    ? `${PLATFORM_URL}?council=${councilId}`
+    : PLATFORM_URL;
 
   el.querySelector(".copy-invite-link")?.addEventListener("click", () => {
     const link = councilInviteLink;
