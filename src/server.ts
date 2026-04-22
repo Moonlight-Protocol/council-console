@@ -29,6 +29,9 @@ function getCSP(): string {
   // In development, allow connections to local services (Stellar RPC, council-platform, etc.)
   if (Deno.env.get("MODE") === "development") {
     connectSrc.push("http://localhost:*");
+    // Docker Compose: allow connections to service hostnames (e.g. http://council:8080)
+    const extraHosts = Deno.env.get("CSP_CONNECT_HOSTS");
+    if (extraHosts) extraHosts.split(",").forEach((h) => connectSrc.push(h.trim()));
   }
 
   return [
