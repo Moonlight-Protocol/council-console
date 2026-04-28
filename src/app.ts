@@ -1,7 +1,7 @@
 import { route, startRouter } from "./lib/router.ts";
 import { initAnalytics } from "./lib/analytics.ts";
 import { initTracer } from "./lib/tracer.ts";
-import { OTEL_ENDPOINT } from "./lib/config.ts";
+import { OTEL_AUTH, OTEL_ENDPOINT } from "./lib/config.ts";
 
 import { loginView } from "./views/login.ts";
 import { councilsView } from "./views/councils.ts";
@@ -17,7 +17,7 @@ import { assetsView } from "./views/onboarding/assets.ts";
 import { inviteView } from "./views/onboarding/invite.ts";
 
 initAnalytics();
-initTracer({ endpoint: OTEL_ENDPOINT });
+initTracer({ endpoint: OTEL_ENDPOINT, auth: OTEL_AUTH });
 
 // Auth
 route("/login", loginView);
