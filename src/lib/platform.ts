@@ -3,7 +3,15 @@
  * Handles challenge-response auth and all admin API calls.
  */
 import { PLATFORM_URL } from "./config.ts";
-import { signMessage, getConnectedAddress } from "./wallet.ts";
+import { getConnectedAddress, signMessage } from "./wallet.ts";
+import { currentTraceparent } from "./tracer.ts";
+
+function withTraceparent(
+  headers: Record<string, string>,
+): Record<string, string> {
+  const tp = currentTraceparent();
+  return tp ? { ...headers, traceparent: tp } : headers;
+}
 
 const TOKEN_KEY = "council_platform_jwt";
 
@@ -22,11 +30,14 @@ export async function authenticate(): Promise<string> {
   if (!PLATFORM_URL) throw new Error("Platform URL not configured");
 
   // Step 1: Request challenge nonce
-  const challengeRes = await fetch(`${PLATFORM_URL}/api/v1/admin/auth/challenge`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ publicKey }),
-  });
+  const challengeRes = await fetch(
+    `${PLATFORM_URL}/api/v1/admin/auth/challenge`,
+    {
+      method: "POST",
+      headers: withTraceparent({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ publicKey }),
+    },
+  );
   if (!challengeRes.ok) {
     throw new Error(`Failed to get auth challenge: ${challengeRes.status}`);
   }
@@ -38,7 +49,7 @@ export async function authenticate(): Promise<string> {
   // Step 3: Verify signature, receive JWT
   const verifyRes = await fetch(`${PLATFORM_URL}/api/v1/admin/auth/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withTraceparent({ "Content-Type": "application/json" }),
     body: JSON.stringify({ nonce, signature, publicKey }),
   });
   if (!verifyRes.ok) {
@@ -55,17 +66,20 @@ export async function authenticate(): Promise<string> {
  * Authenticated fetch wrapper. Auto-authenticates if no token,
  * retries once on 401 (token expired).
  */
-async function platformFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+async function platformFetch(
+  path: string,
+  opts: RequestInit = {},
+): Promise<Response> {
   if (!authToken) throw new Error("Not authenticated. Please sign in first.");
 
   const doFetch = () =>
     fetch(`${PLATFORM_URL}${path}`, {
       ...opts,
-      headers: {
+      headers: withTraceparent({
         "Content-Type": "application/json",
         "Authorization": `Bearer ${authToken}`,
         ...(opts.headers as Record<string, string> ?? {}),
-      },
+      }),
     });
 
   const res = await doFetch();
@@ -96,7 +110,17 @@ export async function pushMetadata(data: {
 }
 
 /** List all councils. */
-export async function listCouncils(): Promise<Array<{ councilId: string; name: string; description: string | null; contactEmail: string | null; councilPublicKey: string }>> {
+export async function listCouncils(): Promise<
+  Array<
+    {
+      councilId: string;
+      name: string;
+      description: string | null;
+      contactEmail: string | null;
+      councilPublicKey: string;
+    }
+  >
+> {
   const res = await platformFetch("/api/v1/council/list");
   if (!res.ok) throw new Error("Failed to list councils");
   const { data } = await res.json();
@@ -104,21 +128,36 @@ export async function listCouncils(): Promise<Array<{ councilId: string; name: s
 }
 
 /** Add a jurisdiction to a council. Ignores 409 (already exists). */
-export async function addJurisdiction(councilId: string, countryCode: string, label?: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/jurisdictions?councilId=${encodeURIComponent(councilId)}`, {
-    method: "POST",
-    body: JSON.stringify({ countryCode, label }),
-  });
+export async function addJurisdiction(
+  councilId: string,
+  countryCode: string,
+  label?: string,
+): Promise<void> {
+  const res = await platformFetch(
+    `/api/v1/council/jurisdictions?councilId=${encodeURIComponent(councilId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ countryCode, label }),
+    },
+  );
   if (!res.ok && res.status !== 409) {
     throw new Error(`Failed to add jurisdiction ${countryCode}: ${res.status}`);
   }
 }
 
 /** Remove a jurisdiction from a council. */
-export async function removeJurisdiction(councilId: string, countryCode: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/jurisdictions/${encodeURIComponent(countryCode)}?councilId=${encodeURIComponent(councilId)}`, {
-    method: "DELETE",
-  });
+export async function removeJurisdiction(
+  councilId: string,
+  countryCode: string,
+): Promise<void> {
+  const res = await platformFetch(
+    `/api/v1/council/jurisdictions/${
+      encodeURIComponent(countryCode)
+    }?councilId=${encodeURIComponent(councilId)}`,
+    {
+      method: "DELETE",
+    },
+  );
   if (!res.ok) throw new Error(`Failed to remove jurisdiction: ${res.status}`);
 }
 
@@ -130,19 +169,26 @@ export async function registerChannel(councilId: string, data: {
   issuerAddress?: string;
   label?: string;
 }): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  const res = await platformFetch(
+    `/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
   if (!res.ok && res.status !== 409) {
     throw new Error(`Failed to register channel: ${res.status}`);
   }
 }
 
 /** Fetch all known assets (public, no auth needed). */
-export async function listKnownAssets(): Promise<Array<{ assetCode: string; issuerAddress: string }>> {
+export async function listKnownAssets(): Promise<
+  Array<{ assetCode: string; issuerAddress: string }>
+> {
   if (!PLATFORM_URL) return [];
-  const res = await fetch(`${PLATFORM_URL}/api/v1/public/known-assets`);
+  const res = await fetch(`${PLATFORM_URL}/api/v1/public/known-assets`, {
+    headers: withTraceparent({}),
+  });
   if (!res.ok) return [];
   const { data } = await res.json();
   return data;
@@ -150,10 +196,12 @@ export async function listKnownAssets(): Promise<Array<{ assetCode: string; issu
 
 /** Delete a council and all related data from the platform (soft-delete). */
 export async function deleteCouncil(councilId: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/metadata?councilId=${encodeURIComponent(councilId)}`, { method: "DELETE" });
+  const res = await platformFetch(
+    `/api/v1/council/metadata?councilId=${encodeURIComponent(councilId)}`,
+    { method: "DELETE" },
+  );
   if (!res.ok) throw new Error("Failed to delete council");
 }
-
 
 // --- Channel API ---
 
@@ -167,27 +215,43 @@ export interface PlatformChannel {
 
 /** Disable a channel (soft-delete). */
 export async function disableChannel(id: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/channels/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const res = await platformFetch(
+    `/api/v1/council/channels/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
   if (!res.ok) throw new Error("Failed to disable channel");
 }
 
 /** Re-enable a disabled channel. */
 export async function enableChannel(id: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/channels/${encodeURIComponent(id)}/enable`, { method: "POST" });
+  const res = await platformFetch(
+    `/api/v1/council/channels/${encodeURIComponent(id)}/enable`,
+    { method: "POST" },
+  );
   if (!res.ok) throw new Error("Failed to re-enable channel");
 }
 
 /** List active channels for a council. */
-export async function listChannels(councilId: string): Promise<PlatformChannel[]> {
-  const res = await platformFetch(`/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`);
+export async function listChannels(
+  councilId: string,
+): Promise<PlatformChannel[]> {
+  const res = await platformFetch(
+    `/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`,
+  );
   if (!res.ok) throw new Error("Failed to fetch channels");
   const { data } = await res.json();
   return data;
 }
 
 /** List disabled channels for a council. */
-export async function listDisabledChannels(councilId: string): Promise<PlatformChannel[]> {
-  const res = await platformFetch(`/api/v1/council/channels/disabled?councilId=${encodeURIComponent(councilId)}`);
+export async function listDisabledChannels(
+  councilId: string,
+): Promise<PlatformChannel[]> {
+  const res = await platformFetch(
+    `/api/v1/council/channels/disabled?councilId=${
+      encodeURIComponent(councilId)
+    }`,
+  );
   if (!res.ok) throw new Error("Failed to fetch disabled channels");
   const { data } = await res.json();
   return data;
@@ -209,7 +273,10 @@ export interface JoinRequest {
 }
 
 /** Fetch join requests for a council (admin). */
-export async function listJoinRequests(councilId: string, status?: string): Promise<JoinRequest[]> {
+export async function listJoinRequests(
+  councilId: string,
+  status?: string,
+): Promise<JoinRequest[]> {
   let qs = `?councilId=${encodeURIComponent(councilId)}`;
   if (status) qs += `&status=${encodeURIComponent(status)}`;
   const res = await platformFetch(`/api/v1/council/provider-requests${qs}`);
@@ -220,17 +287,23 @@ export async function listJoinRequests(councilId: string, status?: string): Prom
 
 /** Approve a join request (admin). The PP detects approval via on-chain event or status polling. */
 export async function approveJoinRequest(id: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/provider-requests/${encodeURIComponent(id)}/approve`, {
-    method: "POST",
-  });
+  const res = await platformFetch(
+    `/api/v1/council/provider-requests/${encodeURIComponent(id)}/approve`,
+    {
+      method: "POST",
+    },
+  );
   if (!res.ok) throw new Error("Failed to approve join request");
 }
 
 /** Reject a join request (admin). */
 export async function rejectJoinRequest(id: string): Promise<void> {
-  const res = await platformFetch(`/api/v1/council/provider-requests/${encodeURIComponent(id)}/reject`, {
-    method: "POST",
-  });
+  const res = await platformFetch(
+    `/api/v1/council/provider-requests/${encodeURIComponent(id)}/reject`,
+    {
+      method: "POST",
+    },
+  );
   if (!res.ok) throw new Error("Failed to reject join request");
 }
 
@@ -241,12 +314,17 @@ export async function submitJoinRequest(data: {
   contactEmail?: string;
 }): Promise<void> {
   if (!PLATFORM_URL) throw new Error("Platform URL not configured");
-  const res = await fetch(`${PLATFORM_URL}/api/v1/public/provider/join-request`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (res.status === 409) throw new Error("A pending request already exists for this key");
+  const res = await fetch(
+    `${PLATFORM_URL}/api/v1/public/provider/join-request`,
+    {
+      method: "POST",
+      headers: withTraceparent({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    },
+  );
+  if (res.status === 409) {
+    throw new Error("A pending request already exists for this key");
+  }
   if (!res.ok) throw new Error("Failed to submit join request");
 }
 

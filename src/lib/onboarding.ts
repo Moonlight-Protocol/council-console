@@ -4,6 +4,7 @@
  */
 import { PLATFORM_URL } from "./config.ts";
 import { getConnectedAddress } from "./wallet.ts";
+import { currentTraceparent } from "./tracer.ts";
 
 export const ONBOARDING_STEPS = [
   { id: "metadata", label: "Council" },
@@ -28,14 +29,20 @@ export interface CouncilState {
 }
 
 /** Fetch a council's state from the platform. */
-export async function fetchCouncilState(councilId?: string): Promise<CouncilState> {
+export async function fetchCouncilState(
+  councilId?: string,
+): Promise<CouncilState> {
   if (!PLATFORM_URL) {
     return { exists: false, channels: [], jurisdictions: [], providers: [] };
   }
 
   try {
     const qs = councilId ? `?councilId=${encodeURIComponent(councilId)}` : "";
-    const res = await fetch(`${PLATFORM_URL}/api/v1/public/council${qs}`);
+    const tp = currentTraceparent();
+    const res = await fetch(
+      `${PLATFORM_URL}/api/v1/public/council${qs}`,
+      tp ? { headers: { traceparent: tp } } : undefined,
+    );
     if (!res.ok) {
       return { exists: false, channels: [], jurisdictions: [], providers: [] };
     }
@@ -74,7 +81,10 @@ export function isCouncilAdmin(state: CouncilState): boolean {
 }
 
 /** Save form data mid-entry so it survives a refresh within the same session. */
-export function saveFormDraft(step: string, data: Record<string, unknown>): void {
+export function saveFormDraft(
+  step: string,
+  data: Record<string, unknown>,
+): void {
   sessionStorage.setItem(`onboarding_draft_${step}`, JSON.stringify(data));
 }
 

@@ -24,6 +24,11 @@ let endpoint = "";
 const pendingSpans: SpanData[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Module-level "current span" so outbound fetches can attach a traceparent
+// header without every call site having to thread the span through. Safe for
+// the sequential await chains in views; not safe for unrelated parallel work.
+let currentSpan: SpanData | null = null;
+
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
@@ -71,6 +76,9 @@ export function endSpan(
 
 /**
  * Trace an async operation. Creates a span, runs fn, ends the span.
+ *
+ * While fn is running, the span is exposed as the module-level current span
+ * so outbound fetch calls can attach a W3C traceparent header.
  */
 export async function withSpan<T>(
   name: string,
@@ -80,6 +88,8 @@ export async function withSpan<T>(
   attributes?: Record<string, string | number | boolean>,
 ): Promise<T> {
   const span = startSpan({ traceId, parentSpanId, name, attributes });
+  const previous = currentSpan;
+  currentSpan = span;
   try {
     const result = await fn(span);
     endSpan(span, { code: 0 });
@@ -90,7 +100,20 @@ export async function withSpan<T>(
       message: error instanceof Error ? error.message : String(error),
     });
     throw error;
+  } finally {
+    currentSpan = previous;
   }
+}
+
+/** W3C traceparent header value for chaining backend spans into this trace. */
+export function traceparent(traceId: string, spanId: string): string {
+  return `00-${traceId}-${spanId}-01`;
+}
+
+/** Returns the W3C traceparent header for the active span, or null. */
+export function currentTraceparent(): string | null {
+  if (!currentSpan) return null;
+  return traceparent(currentSpan.traceId, currentSpan.spanId);
 }
 
 function scheduleFlush(): void {
@@ -131,8 +154,8 @@ async function flush(): Promise<void> {
             value: typeof v === "string"
               ? { stringValue: v }
               : typeof v === "number"
-                ? { intValue: String(v) }
-                : { boolValue: v },
+              ? { intValue: String(v) }
+              : { boolValue: v },
           })),
           status: s.status
             ? { code: s.status.code, message: s.status.message || "" }
