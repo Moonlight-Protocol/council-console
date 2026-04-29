@@ -117,7 +117,8 @@ function renderStep(): HTMLElement {
     navigator.clipboard.writeText(opexPublicKey).then(() => {
       const btn = el.querySelector(".copy-treasury") as HTMLButtonElement;
       const orig = btn.innerHTML;
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+      btn.innerHTML =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
       setTimeout(() => {
         btn.innerHTML = orig;
       }, 1500);

@@ -2,7 +2,6 @@
  * Public join request form — no authentication required.
  * Reached via the invite link shared by the council admin.
  */
-import { escapeHtml } from "../lib/dom.ts";
 import { PLATFORM_URL } from "../lib/config.ts";
 import { submitJoinRequest } from "../lib/platform.ts";
 
@@ -55,9 +54,12 @@ function renderContent(): HTMLElement {
   const successEl = el.querySelector("#join-success") as HTMLDivElement;
 
   submitBtn.addEventListener("click", async () => {
-    const publicKey = (el.querySelector("#join-pubkey") as HTMLInputElement).value.trim();
-    const label = (el.querySelector("#join-label") as HTMLInputElement).value.trim();
-    const contactEmail = (el.querySelector("#join-email") as HTMLInputElement).value.trim();
+    const publicKey = (el.querySelector("#join-pubkey") as HTMLInputElement)
+      .value.trim();
+    const label = (el.querySelector("#join-label") as HTMLInputElement).value
+      .trim();
+    const contactEmail = (el.querySelector("#join-email") as HTMLInputElement)
+      .value.trim();
 
     if (!publicKey) {
       errorEl.textContent = "Stellar public key is required";

@@ -6,8 +6,14 @@ import { escapeHtml } from "../lib/dom.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
 import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
-import { STELLAR_NETWORK, FRIENDBOT_URL } from "../lib/config.ts";
-import { isPlatformConfigured, authenticate, pushMetadata, addJurisdiction, registerChannel } from "../lib/platform.ts";
+import { FRIENDBOT_URL, STELLAR_NETWORK } from "../lib/config.ts";
+import {
+  addJurisdiction,
+  authenticate,
+  isPlatformConfigured,
+  pushMetadata,
+  registerChannel,
+} from "../lib/platform.ts";
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -24,7 +30,9 @@ function renderContent(): HTMLElement {
       <div class="stats-row">
         <div class="stat-card">
           <span class="stat-label">Admin</span>
-          <span class="stat-value mono" style="font-size:0.7rem">${escapeHtml(adminAddress || "Not connected")}</span>
+          <span class="stat-value mono" style="font-size:0.7rem">${
+    escapeHtml(adminAddress || "Not connected")
+  }</span>
         </div>
         <div class="stat-card" id="balance-card">
           <span class="stat-label">XLM Balance</span>
@@ -35,10 +43,16 @@ function renderContent(): HTMLElement {
       <div id="balance-warning" class="balance-warning" hidden>
         <strong>Insufficient funds.</strong> You need at least ~20 XLM to cover contract deployment fees.
         Fund this address:
-        <span class="mono" style="font-size:0.75rem;word-break:break-all">${escapeHtml(adminAddress || "")}</span>
-        ${(STELLAR_NETWORK === "testnet" || STELLAR_NETWORK === "standalone")
-          ? `<br><a href="${escapeHtml(FRIENDBOT_URL)}?addr=${escapeHtml(adminAddress || "")}" target="_blank" rel="noopener" style="color:var(--primary)">Fund via Friendbot</a>`
-          : ""}
+        <span class="mono" style="font-size:0.75rem;word-break:break-all">${
+    escapeHtml(adminAddress || "")
+  }</span>
+        ${
+    (STELLAR_NETWORK === "testnet" || STELLAR_NETWORK === "standalone")
+      ? `<br><a href="${escapeHtml(FRIENDBOT_URL)}?addr=${
+        escapeHtml(adminAddress || "")
+      }" target="_blank" rel="noopener" style="color:var(--primary)">Fund via Friendbot</a>`
+      : ""
+  }
       </div>
 
       <div class="form-group">
@@ -93,7 +107,9 @@ function renderContent(): HTMLElement {
         <div id="step-deploy-auth" class="deploy-step">Deploy Channel Auth</div>
         <div id="step-install-channel" class="deploy-step">Install Privacy Channel WASM</div>
         <div id="step-deploy-channel" class="deploy-step">Deploy Privacy Channel</div>
-        <div id="step-platform" class="deploy-step" ${isPlatformConfigured() ? '' : 'hidden'}>Register with council platform</div>
+        <div id="step-platform" class="deploy-step" ${
+    isPlatformConfigured() ? "" : "hidden"
+  }>Register with council platform</div>
       </div>
 
       <p id="deploy-error" class="error-text" hidden></p>
@@ -123,7 +139,9 @@ function renderContent(): HTMLElement {
     import("../lib/stellar.ts").then(({ getAccountBalance }) => {
       getAccountBalance(adminAddress).then(({ xlm, funded }) => {
         const balanceEl = el.querySelector("#balance-value") as HTMLElement;
-        const warningEl = el.querySelector("#balance-warning") as HTMLDivElement;
+        const warningEl = el.querySelector(
+          "#balance-warning",
+        ) as HTMLDivElement;
         const cardEl = el.querySelector("#balance-card") as HTMLDivElement;
 
         if (!funded) {
@@ -162,7 +180,8 @@ function renderContent(): HTMLElement {
       tag.textContent = `${entry.code} `;
       const removeBtn = document.createElement("button");
       removeBtn.textContent = "\u00d7";
-      removeBtn.style.cssText = "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
+      removeBtn.style.cssText =
+        "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
       removeBtn.addEventListener("click", () => {
         selectedJurisdictions.delete(code);
         renderJurisdictionTags();
@@ -177,27 +196,37 @@ function renderContent(): HTMLElement {
     listEl.innerHTML = "";
     const query = filter.toLowerCase();
     const filtered = COUNTRY_CODES.filter(
-      (c) => c.label.toLowerCase().includes(query) || c.code.toLowerCase().includes(query),
+      (c) =>
+        c.label.toLowerCase().includes(query) ||
+        c.code.toLowerCase().includes(query),
     );
     for (const country of filtered) {
       const selected = selectedJurisdictions.has(country.code);
       const option = document.createElement("div");
       option.className = "jurisdiction-option" + (selected ? " selected" : "");
-      const flag = country.code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      const flag = country.code.toUpperCase().replace(
+        /./g,
+        (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65),
+      );
       option.textContent = `${flag} ${country.label}`;
       option.addEventListener("click", () => {
         if (selected) selectedJurisdictions.delete(country.code);
         else selectedJurisdictions.add(country.code);
         renderJurisdictionTags();
-        if (!selected) { filterEl.value = ""; renderJurisdictionList(""); }
-        else renderJurisdictionList(filterEl.value);
+        if (!selected) {
+          filterEl.value = "";
+          renderJurisdictionList("");
+        } else renderJurisdictionList(filterEl.value);
       });
       listEl.appendChild(option);
     }
   }
 
   renderJurisdictionList("");
-  filterEl.addEventListener("input", () => renderJurisdictionList(filterEl.value));
+  filterEl.addEventListener(
+    "input",
+    () => renderJurisdictionList(filterEl.value),
+  );
 
   // --- Deploy handler ---
   const btn = el.querySelector("#deploy-btn") as HTMLButtonElement;
@@ -225,12 +254,18 @@ function renderContent(): HTMLElement {
     const { traceId } = startTrace();
 
     try {
-      const label = (el.querySelector("#council-label") as HTMLInputElement).value.trim();
-      const description = (el.querySelector("#council-description") as HTMLTextAreaElement).value.trim();
-      const contactEmail = (el.querySelector("#council-email") as HTMLInputElement).value.trim();
+      const label = (el.querySelector("#council-label") as HTMLInputElement)
+        .value.trim();
+      const description =
+        (el.querySelector("#council-description") as HTMLTextAreaElement).value
+          .trim();
+      const contactEmail =
+        (el.querySelector("#council-email") as HTMLInputElement).value.trim();
       const jurisdictions = Array.from(selectedJurisdictions);
-      const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim();
-      const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim();
+      const assetCode = (el.querySelector("#asset-code") as HTMLInputElement)
+        .value.trim();
+      const assetIssuer =
+        (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim();
 
       const {
         fetchWasm,
@@ -257,7 +292,10 @@ function renderContent(): HTMLElement {
       setStep("step-install-auth", "active");
       let authWasmHash!: Uint8Array;
       await withSpan("deploy.install_channel_auth", traceId, async () => {
-        const { xdr, wasmHash } = await buildInstallWasmTx(authWasm, adminAddress);
+        const { xdr, wasmHash } = await buildInstallWasmTx(
+          authWasm,
+          adminAddress,
+        );
         authWasmHash = wasmHash;
         const signed = await signTransaction(xdr);
         await submitTx(signed);
@@ -268,11 +306,17 @@ function renderContent(): HTMLElement {
       setStep("step-deploy-auth", "active");
       let channelAuthId!: string;
       await withSpan("deploy.deploy_channel_auth", traceId, async () => {
-        const adminScVal = nativeToScVal(Address.fromString(adminAddress), { type: "address" });
-        const xdr = await buildDeployContractTx(authWasmHash, adminAddress, [adminScVal]);
+        const adminScVal = nativeToScVal(Address.fromString(adminAddress), {
+          type: "address",
+        });
+        const xdr = await buildDeployContractTx(authWasmHash, adminAddress, [
+          adminScVal,
+        ]);
         const signed = await signTransaction(xdr);
         const { contractId } = await submitTx(signed);
-        if (!contractId) throw new Error("Failed to extract Channel Auth contract ID");
+        if (!contractId) {
+          throw new Error("Failed to extract Channel Auth contract ID");
+        }
         channelAuthId = contractId;
       });
       setStep("step-deploy-auth", "done");
@@ -281,7 +325,10 @@ function renderContent(): HTMLElement {
       setStep("step-install-channel", "active");
       let channelWasmHash!: Uint8Array;
       await withSpan("deploy.install_privacy_channel", traceId, async () => {
-        const { xdr, wasmHash } = await buildInstallWasmTx(channelWasm, adminAddress);
+        const { xdr, wasmHash } = await buildInstallWasmTx(
+          channelWasm,
+          adminAddress,
+        );
         channelWasmHash = wasmHash;
         const signed = await signTransaction(xdr);
         await submitTx(signed);
@@ -292,16 +339,27 @@ function renderContent(): HTMLElement {
       setStep("step-deploy-channel", "active");
       let privacyChannelId!: string;
       await withSpan("deploy.deploy_privacy_channel", traceId, async () => {
-        const assetAddress = await ensureSacDeployed(assetCode, assetIssuer || undefined, adminAddress, signTransaction);
+        const assetAddress = await ensureSacDeployed(
+          assetCode,
+          assetIssuer || undefined,
+          adminAddress,
+          signTransaction,
+        );
         const channelArgs = [
           nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
           nativeToScVal(Address.fromString(channelAuthId), { type: "address" }),
           nativeToScVal(Address.fromString(assetAddress), { type: "address" }),
         ];
-        const xdr = await buildDeployContractTx(channelWasmHash, adminAddress, channelArgs);
+        const xdr = await buildDeployContractTx(
+          channelWasmHash,
+          adminAddress,
+          channelArgs,
+        );
         const signed = await signTransaction(xdr);
         const { contractId } = await submitTx(signed);
-        if (!contractId) throw new Error("Failed to extract Privacy Channel contract ID");
+        if (!contractId) {
+          throw new Error("Failed to extract Privacy Channel contract ID");
+        }
         privacyChannelId = contractId;
       });
       setStep("step-deploy-channel", "done");
@@ -336,7 +394,10 @@ function renderContent(): HTMLElement {
               const entry = COUNTRY_CODES.find((c) => c.code === code);
               await addJurisdiction(code, entry?.label);
             }
-            const assetContractId = await getAssetContractId(assetCode, assetIssuer || undefined);
+            const assetContractId = await getAssetContractId(
+              assetCode,
+              assetIssuer || undefined,
+            );
             await registerChannel({
               channelContractId: privacyChannelId,
               assetCode,
@@ -360,8 +421,10 @@ function renderContent(): HTMLElement {
 
       btn.hidden = true;
       resultEl.hidden = false;
-      (el.querySelector("#result-auth-id") as HTMLElement).textContent = channelAuthId;
-      (el.querySelector("#result-channel-id") as HTMLElement).textContent = privacyChannelId;
+      (el.querySelector("#result-auth-id") as HTMLElement).textContent =
+        channelAuthId;
+      (el.querySelector("#result-channel-id") as HTMLElement).textContent =
+        privacyChannelId;
 
       el.querySelector("#goto-council")?.addEventListener("click", () => {
         navigate(`/council?id=${encodeURIComponent(channelAuthId)}`);
@@ -373,7 +436,9 @@ function renderContent(): HTMLElement {
       capture("council_deploy_failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-      errorEl.textContent = error instanceof Error ? error.message : String(error);
+      errorEl.textContent = error instanceof Error
+        ? error.message
+        : String(error);
       errorEl.hidden = false;
       btn.disabled = false;
     }

@@ -40,7 +40,9 @@ function renderStep(): HTMLElement {
     navigator.clipboard.writeText(inviteLink).then(() => {
       const btn = el.querySelector("#copy-btn") as HTMLButtonElement;
       btn.textContent = "Copied!";
-      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+      setTimeout(() => {
+        btn.textContent = "Copy";
+      }, 2000);
     });
   });
 

@@ -2,37 +2,65 @@
  * Stellar/Soroban helpers for contract deployment and invocation.
  * All transactions are built unsigned and signed via wallet (Freighter).
  */
-import { RPC_URL, HORIZON_URL, FRIENDBOT_URL, getNetworkPassphrase } from "./config.ts";
+import {
+  FRIENDBOT_URL,
+  getNetworkPassphrase,
+  HORIZON_URL,
+  RPC_URL,
+} from "./config.ts";
+import { Buffer } from "node:buffer";
 
 const NETWORK_PASSPHRASE = getNetworkPassphrase();
 
-export { RPC_URL, HORIZON_URL, FRIENDBOT_URL, NETWORK_PASSPHRASE };
+export { FRIENDBOT_URL, HORIZON_URL, NETWORK_PASSPHRASE, RPC_URL };
 
 /** Subset of stellar-sdk used by this module. */
 interface StellarSdkSubset {
   TransactionBuilder: {
-    new (account: StellarAccount, opts: { fee: string; networkPassphrase: string }): TxBuilder;
+    new (
+      account: StellarAccount,
+      opts: { fee: string; networkPassphrase: string },
+    ): TxBuilder;
     fromXDR(xdr: string, networkPassphrase: string): Transaction;
   };
   Operation: {
     invokeHostFunction(opts: { func: unknown; auth: unknown[] }): unknown;
     createStellarAssetContract(opts: { asset: unknown }): unknown;
-    createAccount(opts: { destination: string; startingBalance: string }): unknown;
-    payment(opts: { destination: string; asset: unknown; amount: string }): unknown;
+    createAccount(
+      opts: { destination: string; startingBalance: string },
+    ): unknown;
+    payment(
+      opts: { destination: string; asset: unknown; amount: string },
+    ): unknown;
   };
-  Contract: new (id: string) => { call(fn: string, ...args: unknown[]): unknown };
-  Address: { fromString(addr: string): { toScAddress(): unknown }; fromScVal(val: unknown): { toString(): string } };
+  Contract: new (
+    id: string,
+  ) => { call(fn: string, ...args: unknown[]): unknown };
+  Address: {
+    fromString(addr: string): { toScAddress(): unknown };
+    fromScVal(val: unknown): { toString(): string };
+  };
   Asset: {
     native(): { contractId(passphrase: string): string };
-    new (code: string, issuer: string): { contractId(passphrase: string): string };
+    new (
+      code: string,
+      issuer: string,
+    ): { contractId(passphrase: string): string };
   };
-  StrKey: { encodeContract(bytes: Uint8Array): string; decodeEd25519PublicKey(key: string): Uint8Array; isValidEd25519PublicKey(key: string): boolean };
+  StrKey: {
+    encodeContract(bytes: Uint8Array): string;
+    decodeEd25519PublicKey(key: string): Uint8Array;
+    isValidEd25519PublicKey(key: string): boolean;
+  };
   Keypair: { fromSecret(secret: string): unknown; random(): unknown };
   nativeToScVal(value: unknown, opts?: { type: string }): unknown;
   xdr: XdrNamespace;
   rpc: {
     Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
-    assembleTransaction(tx: Transaction, sim: SimulationResult): { build(): Transaction };
+    assembleTransaction(
+      tx: Transaction,
+      sim: SimulationResult,
+    ): { build(): Transaction };
   };
   hash(data: Uint8Array): Uint8Array;
 }
@@ -75,7 +103,9 @@ interface XdrNamespace {
   };
 }
 
-interface StellarAccount { sequenceNumber(): string }
+interface StellarAccount {
+  sequenceNumber(): string;
+}
 interface TxBuilder {
   addOperation(op: unknown): TxBuilder;
   setTimeout(seconds: number): TxBuilder;
@@ -93,16 +123,28 @@ interface RpcServer {
   getLatestLedger(): Promise<{ sequence: number }>;
   getLedgerEntries(...keys: unknown[]): Promise<{ entries: unknown[] | null }>;
 }
-interface SimulationResult { error?: string }
+interface SimulationResult {
+  error?: string;
+}
 interface TxResult {
   status: string;
   returnValue?: { address(): { contractId(): Uint8Array } };
-  resultMetaXdr?: { v3(): { sorobanMeta(): { events(): SorobanEvent[] } | null } };
+  resultMetaXdr?: {
+    v3(): { sorobanMeta(): { events(): SorobanEvent[] } | null };
+  };
 }
-interface SorobanEvent { contractId(): Uint8Array | null }
+interface SorobanEvent {
+  contractId(): Uint8Array | null;
+}
 
 let StellarSdk: StellarSdkSubset | null = null;
-let RpcModule: { Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer; assembleTransaction(tx: Transaction, sim: SimulationResult): { build(): Transaction } } | null = null;
+let RpcModule: {
+  Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
+  assembleTransaction(
+    tx: Transaction,
+    sim: SimulationResult,
+  ): { build(): Transaction };
+} | null = null;
 
 export async function sdk(): Promise<StellarSdkSubset> {
   if (!StellarSdk) {
@@ -127,7 +169,9 @@ export async function getRpcServer(): Promise<RpcServer> {
 export async function fundAccount(publicKey: string): Promise<void> {
   const res = await fetch(`${FRIENDBOT_URL}?addr=${publicKey}`);
   if (!res.ok) {
-    throw new Error(`Friendbot funding failed: ${res.status} ${await res.text()}`);
+    throw new Error(
+      `Friendbot funding failed: ${res.status} ${await res.text()}`,
+    );
   }
 }
 
@@ -138,7 +182,9 @@ export async function fundAccount(publicKey: string): Promise<void> {
 export async function fetchWasm(contractName: string): Promise<Uint8Array> {
   const res = await fetch(`/wasm/${contractName}.wasm`);
   if (!res.ok) {
-    throw new Error(`Failed to load ${contractName}.wasm (${res.status}). Was the build run?`);
+    throw new Error(
+      `Failed to load ${contractName}.wasm (${res.status}). Was the build run?`,
+    );
   }
   return new Uint8Array(await res.arrayBuffer());
 }
@@ -194,14 +240,24 @@ export async function buildInstallWasmTx(
  * salt = SHA-256(adminAddress + ":council:" + index)
  * Enables recovery — the same wallet + index always produces the same council address.
  */
-export async function computeCouncilSalt(adminAddress: string, index: number): Promise<Uint8Array> {
+export async function computeCouncilSalt(
+  adminAddress: string,
+  index: number,
+): Promise<Uint8Array> {
   const data = new TextEncoder().encode(`${adminAddress}:council:${index}`);
   const hash = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(hash);
 }
 
-export async function computeDeploySalt(channelAuthId: string, assetCode: string, issuerAddress = "", suffix = ""): Promise<Uint8Array> {
-  const data = new TextEncoder().encode(`${channelAuthId}:${assetCode}:${issuerAddress}:${suffix}`);
+export async function computeDeploySalt(
+  channelAuthId: string,
+  assetCode: string,
+  issuerAddress = "",
+  suffix = "",
+): Promise<Uint8Array> {
+  const data = new TextEncoder().encode(
+    `${channelAuthId}:${assetCode}:${issuerAddress}:${suffix}`,
+  );
   const hash = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(hash);
 }
@@ -215,7 +271,7 @@ export async function deriveContractAddress(
   salt: Uint8Array,
 ): Promise<string> {
   const stellar = await sdk();
-  const { Address, StrKey } = stellar;
+  const { StrKey } = stellar;
 
   // The contract ID is SHA-256 of the XDR-encoded HashIDPreimage:
   //   ENVELOPE_TYPE_CONTRACT_ID (4 bytes, value 40)
@@ -226,15 +282,22 @@ export async function deriveContractAddress(
   //   + ed25519 public key (32 bytes)
   //   + salt (32 bytes)
   // Total: 4 + 32 + 4 + 4 + 4 + 32 + 32 = 112 bytes
-  const passphraseHash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(NETWORK_PASSPHRASE)));
+  const passphraseHash = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(NETWORK_PASSPHRASE),
+    ),
+  );
   const deployerBytes = StrKey.decodeEd25519PublicKey(deployerPublicKey);
 
   const preimage = new Uint8Array(112);
   let offset = 0;
   // ENVELOPE_TYPE_CONTRACT_ID = 8 — confirmed correct value (verified against stellar-sdk XDR output)
-  preimage[3] = 8; offset += 4;
+  preimage[3] = 8;
+  offset += 4;
   // network_id
-  preimage.set(passphraseHash, offset); offset += 32;
+  preimage.set(passphraseHash, offset);
+  offset += 32;
   // CONTRACT_ID_PREIMAGE_FROM_ADDRESS = 0 (already zeroed)
   offset += 4;
   // SC_ADDRESS_TYPE_ACCOUNT = 0 (already zeroed)
@@ -242,11 +305,14 @@ export async function deriveContractAddress(
   // PUBLIC_KEY_TYPE_ED25519 = 0 (already zeroed)
   offset += 4;
   // ed25519 key
-  preimage.set(deployerBytes, offset); offset += 32;
+  preimage.set(deployerBytes, offset);
+  offset += 32;
   // salt
   preimage.set(salt, offset);
 
-  const contractHash = new Uint8Array(await crypto.subtle.digest("SHA-256", preimage));
+  const contractHash = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", preimage),
+  );
   return StrKey.encodeContract(contractHash);
 }
 
@@ -270,15 +336,18 @@ export async function buildDeployContractTx(
     .addOperation(Operation.invokeHostFunction({
       func: xdr.HostFunction.hostFunctionTypeCreateContractV2(
         new xdr.CreateContractArgsV2({
-          contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-            new xdr.ContractIdPreimageFromAddress({
-              address: Address.fromString(sourcePublicKey).toScAddress(),
-              salt: Buffer.from(deploySalt),
-            })
+          contractIdPreimage: xdr.ContractIdPreimage
+            .contractIdPreimageFromAddress(
+              new xdr.ContractIdPreimageFromAddress({
+                address: Address.fromString(sourcePublicKey).toScAddress(),
+                salt: Buffer.from(deploySalt),
+              }),
+            ),
+          executable: xdr.ContractExecutable.contractExecutableWasm(
+            Buffer.from(wasmHash),
           ),
-          executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(wasmHash)),
           constructorArgs,
-        })
+        }),
       ),
       auth: [],
     }))
@@ -331,7 +400,9 @@ export async function buildInvokeContractTx(
 /**
  * Submit a signed transaction XDR and wait for confirmation.
  */
-export async function submitTx(signedXdr: string): Promise<{ contractId: string | null }> {
+export async function submitTx(
+  signedXdr: string,
+): Promise<{ contractId: string | null }> {
   const stellar = await sdk();
   const { TransactionBuilder } = stellar;
   const server = await getRpcServer();
@@ -359,7 +430,7 @@ export async function ensureSacDeployed(
   signTransaction: (xdr: string) => Promise<string>,
 ): Promise<string> {
   const stellar = await sdk();
-  const { Asset, Address, TransactionBuilder, Operation, xdr, StrKey } = stellar;
+  const { Asset, Address, TransactionBuilder, Operation, xdr } = stellar;
   const server = await getRpcServer();
 
   const asset = (!assetIssuer || assetCode === "XLM")
@@ -407,7 +478,10 @@ export async function ensureSacDeployed(
 /**
  * Resolve the Stellar Asset Contract address for a given asset.
  */
-export async function getAssetContractId(assetCode: string, assetIssuer?: string): Promise<string> {
+export async function getAssetContractId(
+  assetCode: string,
+  assetIssuer?: string,
+): Promise<string> {
   const stellar = await sdk();
   const { Asset } = stellar;
 
@@ -421,7 +495,9 @@ export async function getAssetContractId(assetCode: string, assetIssuer?: string
 /**
  * Query the admin's native XLM balance via Horizon.
  */
-export async function getAccountBalance(publicKey: string): Promise<{ xlm: string; funded: boolean }> {
+export async function getAccountBalance(
+  publicKey: string,
+): Promise<{ xlm: string; funded: boolean }> {
   try {
     const res = await fetch(`${HORIZON_URL}/accounts/${publicKey}`);
     if (res.status === 404) return { xlm: "0", funded: false };
@@ -457,14 +533,14 @@ export async function buildFundTreasuryTx(
 
   const op = funded
     ? Operation.payment({
-        destination: destinationPublicKey,
-        asset: Asset.native(),
-        amount: amountXlm,
-      })
+      destination: destinationPublicKey,
+      asset: Asset.native(),
+      amount: amountXlm,
+    })
     : Operation.createAccount({
-        destination: destinationPublicKey,
-        startingBalance: amountXlm,
-      });
+      destination: destinationPublicKey,
+      startingBalance: amountXlm,
+    });
 
   const tx = new TransactionBuilder(account, {
     fee: "100000",
@@ -488,11 +564,18 @@ export async function submitHorizonTx(signedXdr: string): Promise<void> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.extras?.result_codes?.operations?.[0] || err.title || `Transaction failed: ${res.status}`);
+    throw new Error(
+      err.extras?.result_codes?.operations?.[0] || err.title ||
+        `Transaction failed: ${res.status}`,
+    );
   }
 }
 
-async function waitForTx(server: RpcServer, hash: string, timeoutMs = 60000): Promise<TxResult> {
+async function waitForTx(
+  server: RpcServer,
+  hash: string,
+  timeoutMs = 60000,
+): Promise<TxResult> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const status = await server.getTransaction(hash);

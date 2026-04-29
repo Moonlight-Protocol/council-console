@@ -3,13 +3,13 @@ import { navigate } from "../lib/router.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
 import { escapeHtml } from "../lib/dom.ts";
 import {
-  isPlatformConfigured,
-  isAuthenticated as isPlatformAuthed,
-  listCouncils,
-  pushMetadata,
   addJurisdiction,
-  registerChannel,
+  isAuthenticated as isPlatformAuthed,
+  isPlatformConfigured,
+  listCouncils,
   listKnownAssets,
+  pushMetadata,
+  registerChannel,
 } from "../lib/platform.ts";
 import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
 import { capture } from "../lib/analytics.ts";
@@ -59,7 +59,12 @@ async function scanCouncils(
   statusEl: HTMLParagraphElement,
   resultsEl: HTMLDivElement,
 ) {
-  const { computeCouncilSalt, deriveContractAddress, sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
+  const {
+    computeCouncilSalt,
+    deriveContractAddress,
+    sdk: getSdk,
+    getRpcServer,
+  } = await import("../lib/stellar.ts");
   const { getNetworkPassphrase } = await import("../lib/config.ts");
   const stellar = await getSdk();
   const server = await getRpcServer();
@@ -126,29 +131,36 @@ async function scanCouncils(
         <button id="back-btn" class="btn-primary" style="margin-top:1rem">Back</button>
       </div>
     `;
-    resultsEl.querySelector("#back-btn")?.addEventListener("click", () => navigate("/"));
+    resultsEl.querySelector("#back-btn")?.addEventListener(
+      "click",
+      () => navigate("/"),
+    );
     return;
   }
 
   statusEl.textContent = "";
 
   const rows = entries.map((e, i) => {
-    const short = `${e.address.slice(0, 6)}...${e.address.slice(-4)}`;
-
     let actionCell: string;
     switch (e.status) {
       case "active":
-        actionCell = `<a href="#/council?id=${encodeURIComponent(e.address)}" class="btn-link" style="font-size:0.85rem">View</a>`;
+        actionCell = `<a href="#/council?id=${
+          encodeURIComponent(e.address)
+        }" class="btn-link" style="font-size:0.85rem">View</a>`;
         break;
       case "onchain":
-        actionCell = `<button class="icon-btn import-btn" data-addr="${escapeHtml(e.address)}" data-index="${e.index}" title="Recover"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/></svg></button>`;
+        actionCell = `<button class="icon-btn import-btn" data-addr="${
+          escapeHtml(e.address)
+        }" data-index="${e.index}" title="Recover"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/></svg></button>`;
         break;
     }
 
     return `
       <tr>
         <td>${i + 1}</td>
-        <td style="font-family:var(--font-mono);font-size:0.75rem;word-break:break-all">${escapeHtml(e.address)}</td>
+        <td style="font-family:var(--font-mono);font-size:0.75rem;word-break:break-all">${
+      escapeHtml(e.address)
+    }</td>
         <td style="text-align:right">${actionCell}</td>
       </tr>
     `;
@@ -222,16 +234,25 @@ function showImportForm(contractId: string) {
 
   document.body.appendChild(overlay);
 
-  function close() { overlay.remove(); document.removeEventListener("keydown", onEsc); }
-  function onEsc(e: KeyboardEvent) { if (e.key === "Escape") close(); }
+  function close() {
+    overlay.remove();
+    document.removeEventListener("keydown", onEsc);
+  }
+  function onEsc(e: KeyboardEvent) {
+    if (e.key === "Escape") close();
+  }
   document.addEventListener("keydown", onEsc);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
 
   const container = overlay.querySelector(".modal") as HTMLDivElement;
 
   // Jurisdiction picker
   const tagsEl = container.querySelector("#import-tags") as HTMLDivElement;
-  const filterEl = container.querySelector("#import-filter") as HTMLInputElement;
+  const filterEl = container.querySelector(
+    "#import-filter",
+  ) as HTMLInputElement;
   const listEl = container.querySelector("#import-list") as HTMLDivElement;
 
   function renderTags() {
@@ -244,8 +265,13 @@ function showImportForm(contractId: string) {
       tag.textContent = `${entry.code} `;
       const x = document.createElement("button");
       x.textContent = "\u00d7";
-      x.style.cssText = "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
-      x.addEventListener("click", () => { selectedJurisdictions.delete(code); renderTags(); renderList(filterEl.value); });
+      x.style.cssText =
+        "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
+      x.addEventListener("click", () => {
+        selectedJurisdictions.delete(code);
+        renderTags();
+        renderList(filterEl.value);
+      });
       tag.appendChild(x);
       tagsEl.appendChild(tag);
     }
@@ -256,24 +282,33 @@ function showImportForm(contractId: string) {
     const q = filter.toLowerCase();
     if (q.length < 2) {
       const hint = document.createElement("p");
-      hint.style.cssText = "color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0.75rem";
+      hint.style.cssText =
+        "color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0.75rem";
       hint.textContent = "Type at least 2 characters to search...";
       listEl.appendChild(hint);
       return;
     }
     for (const country of COUNTRY_CODES) {
-      if (!country.label.toLowerCase().includes(q) && !country.code.toLowerCase().includes(q)) continue;
+      if (
+        !country.label.toLowerCase().includes(q) &&
+        !country.code.toLowerCase().includes(q)
+      ) continue;
       const selected = selectedJurisdictions.has(country.code);
       const option = document.createElement("div");
       option.className = "jurisdiction-option" + (selected ? " selected" : "");
-      const flag = country.code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      const flag = country.code.toUpperCase().replace(
+        /./g,
+        (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65),
+      );
       option.textContent = `${flag} ${country.label}`;
       option.addEventListener("click", () => {
         if (selected) selectedJurisdictions.delete(country.code);
         else selectedJurisdictions.add(country.code);
         renderTags();
-        if (!selected) { filterEl.value = ""; renderList(""); }
-        else renderList(filterEl.value);
+        if (!selected) {
+          filterEl.value = "";
+          renderList("");
+        } else renderList(filterEl.value);
       });
       listEl.appendChild(option);
     }
@@ -284,15 +319,28 @@ function showImportForm(contractId: string) {
   filterEl.addEventListener("input", () => renderList(filterEl.value));
 
   // Submit
-  const submitBtn = container.querySelector("#import-submit-btn") as HTMLButtonElement;
-  const errorEl = container.querySelector("#import-error") as HTMLParagraphElement;
+  const submitBtn = container.querySelector(
+    "#import-submit-btn",
+  ) as HTMLButtonElement;
+  const errorEl = container.querySelector(
+    "#import-error",
+  ) as HTMLParagraphElement;
 
   submitBtn.addEventListener("click", async () => {
-    const name = (container.querySelector("#import-name") as HTMLInputElement).value.trim();
-    if (!name) { errorEl.textContent = "Council name is required"; errorEl.hidden = false; return; }
+    const name = (container.querySelector("#import-name") as HTMLInputElement)
+      .value.trim();
+    if (!name) {
+      errorEl.textContent = "Council name is required";
+      errorEl.hidden = false;
+      return;
+    }
 
-    const description = (container.querySelector("#import-description") as HTMLTextAreaElement).value.trim();
-    const contactEmail = (container.querySelector("#import-email") as HTMLInputElement).value.trim();
+    const description =
+      (container.querySelector("#import-description") as HTMLTextAreaElement)
+        .value.trim();
+    const contactEmail =
+      (container.querySelector("#import-email") as HTMLInputElement).value
+        .trim();
     const jurisdictions = Array.from(selectedJurisdictions);
     const adminAddress = getConnectedAddress()!;
 
@@ -301,14 +349,23 @@ function showImportForm(contractId: string) {
     errorEl.hidden = true;
 
     try {
-      const { computeDeploySalt, deriveContractAddress, getAssetContractId, sdk: getSdk, getRpcServer } = await import("../lib/stellar.ts");
+      const {
+        computeDeploySalt,
+        deriveContractAddress,
+        getAssetContractId,
+        sdk: getSdk,
+        getRpcServer,
+      } = await import("../lib/stellar.ts");
       const { getNetworkPassphrase } = await import("../lib/config.ts");
       const stellar = await getSdk();
       const server = await getRpcServer();
 
       // Discover channels by checking known assets
       const knownAssets = await listKnownAssets();
-      const assetsToCheck = [{ assetCode: "XLM", issuerAddress: "" }, ...knownAssets];
+      const assetsToCheck = [
+        { assetCode: "XLM", issuerAddress: "" },
+        ...knownAssets,
+      ];
       const seen = new Set<string>();
       const uniqueAssets = assetsToCheck.filter((a) => {
         const key = `${a.assetCode}:${a.issuerAddress}`;
@@ -317,30 +374,53 @@ function showImportForm(contractId: string) {
         return true;
       });
 
-      const discoveredChannels: Array<{ contractId: string; assetCode: string; issuerAddress: string }> = [];
+      const discoveredChannels: Array<
+        { contractId: string; assetCode: string; issuerAddress: string }
+      > = [];
 
       for (const asset of uniqueAssets) {
         try {
-          const salt = await computeDeploySalt(contractId, asset.assetCode, asset.issuerAddress);
-          const derivedAddress = await deriveContractAddress(adminAddress, salt);
+          const salt = await computeDeploySalt(
+            contractId,
+            asset.assetCode,
+            asset.issuerAddress,
+          );
+          const derivedAddress = await deriveContractAddress(
+            adminAddress,
+            salt,
+          );
           const contract = new stellar.Contract(derivedAddress);
           const account = await server.getAccount(adminAddress);
-          const tx = new stellar.TransactionBuilder(account, { fee: "100", networkPassphrase: getNetworkPassphrase() })
+          const tx = new stellar.TransactionBuilder(account, {
+            fee: "100",
+            networkPassphrase: getNetworkPassphrase(),
+          })
             .addOperation(contract.call("auth"))
             .setTimeout(30)
             .build();
           const sim = await server.simulateTransaction(tx);
           if (!("error" in sim && sim.error)) {
-            discoveredChannels.push({ contractId: derivedAddress, assetCode: asset.assetCode, issuerAddress: asset.issuerAddress });
+            discoveredChannels.push({
+              contractId: derivedAddress,
+              assetCode: asset.assetCode,
+              issuerAddress: asset.issuerAddress,
+            });
           }
         } catch { /* not found */ }
       }
 
-      submitBtn.textContent = `Found ${discoveredChannels.length} channel${discoveredChannels.length !== 1 ? "s" : ""}. Registering...`;
+      submitBtn.textContent = `Found ${discoveredChannels.length} channel${
+        discoveredChannels.length !== 1 ? "s" : ""
+      }. Registering...`;
 
       // Push to platform
       if (isPlatformConfigured()) {
-        await pushMetadata({ councilId: contractId, name, description: description || undefined, contactEmail: contactEmail || undefined });
+        await pushMetadata({
+          councilId: contractId,
+          name,
+          description: description || undefined,
+          contactEmail: contactEmail || undefined,
+        });
 
         for (const code of jurisdictions) {
           const entry = COUNTRY_CODES.find((c) => c.code === code);
@@ -348,7 +428,10 @@ function showImportForm(contractId: string) {
         }
 
         for (const ch of discoveredChannels) {
-          const sacId = await getAssetContractId(ch.assetCode, ch.issuerAddress || undefined);
+          const sacId = await getAssetContractId(
+            ch.assetCode,
+            ch.issuerAddress || undefined,
+          );
           await registerChannel(contractId, {
             channelContractId: ch.contractId,
             assetCode: ch.assetCode,
@@ -359,7 +442,10 @@ function showImportForm(contractId: string) {
         }
       }
 
-      capture("council_imported", { channelAuthId: contractId, channels: discoveredChannels.length });
+      capture("council_imported", {
+        channelAuthId: contractId,
+        channels: discoveredChannels.length,
+      });
       close();
       navigate("/");
     } catch (err) {

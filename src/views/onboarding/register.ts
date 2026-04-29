@@ -1,12 +1,12 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
-import { getFormDraft, clearFormDraft } from "../../lib/onboarding.ts";
+import { clearFormDraft, getFormDraft } from "../../lib/onboarding.ts";
 import { COUNTRY_CODES } from "../../lib/jurisdictions.ts";
 import {
-  isPlatformConfigured,
-  authenticate,
-  pushMetadata,
   addJurisdiction,
+  authenticate,
+  isPlatformConfigured,
+  pushMetadata,
   registerChannel,
 } from "../../lib/platform.ts";
 
@@ -48,7 +48,10 @@ function renderStep(): HTMLElement {
       statusEl.textContent = "Pushing council info...";
 
       const metadata = getFormDraft("metadata") as {
-        name?: string; description?: string; contactEmail?: string; jurisdictions?: string[];
+        name?: string;
+        description?: string;
+        contactEmail?: string;
+        jurisdictions?: string[];
       } | null;
 
       if (metadata?.name) {
@@ -71,7 +74,9 @@ function renderStep(): HTMLElement {
       const councilId = sessionStorage.getItem("onboarding_council_id");
       let privacyChannelId: string | undefined;
       try {
-        const progress = JSON.parse(localStorage.getItem("council_create_progress") || "{}");
+        const progress = JSON.parse(
+          localStorage.getItem("council_create_progress") || "{}",
+        );
         privacyChannelId = progress.privacyChannelId;
       } catch { /* no progress */ }
 

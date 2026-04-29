@@ -42,7 +42,8 @@ route("/join", joinView);
 route("/404", () => {
   const el = document.createElement("div");
   el.className = "login-container";
-  el.innerHTML = `<div class="login-card"><h1>404</h1><p>Page not found.</p><a href="#/">Back</a></div>`;
+  el.innerHTML =
+    `<div class="login-card"><h1>404</h1><p>Page not found.</p><a href="#/">Back</a></div>`;
   return el;
 });
 

@@ -86,7 +86,7 @@ async function platformFetch(
   if (res.status === 401) {
     clearPlatformAuth();
     // Redirect to login — JWT is invalid, user needs to sign in again
-    window.location.hash = "#/login";
+    globalThis.location.hash = "#/login";
     throw new Error("Session expired");
   }
   return res;

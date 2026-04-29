@@ -2,7 +2,11 @@
  * Safe DOM helpers to avoid innerHTML XSS.
  */
 
-export function renderError(container: HTMLElement, title: string, message: string): void {
+export function renderError(
+  container: HTMLElement,
+  title: string,
+  message: string,
+): void {
   container.textContent = "";
   const h2 = document.createElement("h2");
   h2.textContent = title;
@@ -26,20 +30,30 @@ export function truncateAddress(addr: string): string {
 /** Extract a user-friendly error message from any thrown value.
  *  Strips internal details — only shows safe, generic messages to the UI. */
 export function friendlyError(error: unknown): string {
-  const msg = error instanceof Error ? error.message
-    : typeof error === "object" && error !== null && "message" in error ? String((error as { message: unknown }).message)
+  const msg = error instanceof Error
+    ? error.message
+    : typeof error === "object" && error !== null && "message" in error
+    ? String((error as { message: unknown }).message)
     : String(error);
   const lower = msg.toLowerCase();
-  if (lower.includes("cancel") || lower.includes("rejected") || lower.includes("denied") || lower.includes("user refused")) {
+  if (
+    lower.includes("cancel") || lower.includes("rejected") ||
+    lower.includes("denied") || lower.includes("user refused")
+  ) {
     return "Transaction cancelled.";
   }
-  if (lower.includes("not authenticated") || lower.includes("session expired")) {
+  if (
+    lower.includes("not authenticated") || lower.includes("session expired")
+  ) {
     return "Session expired. Please sign in again.";
   }
   if (lower.includes("failed to fetch") || lower.includes("networkerror")) {
     return "Network error. Please check your connection.";
   }
-  if (lower.includes("insufficient") || lower.includes("underfunded") || lower.includes("balance") || lower.includes("tx_insufficient")) {
+  if (
+    lower.includes("insufficient") || lower.includes("underfunded") ||
+    lower.includes("balance") || lower.includes("tx_insufficient")
+  ) {
     return "Your wallet doesn't have enough funds to complete this transaction.";
   }
   if (lower.includes("not found")) {
