@@ -1,31 +1,31 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
 import { getConnectedAddress } from "../../lib/wallet.ts";
-import { getFormDraft, clearFormDraft } from "../../lib/onboarding.ts";
+import { getFormDraft } from "../../lib/onboarding.ts";
 import { COUNTRY_CODES } from "../../lib/jurisdictions.ts";
 import { escapeHtml, friendlyError } from "../../lib/dom.ts";
 import { capture } from "../../lib/analytics.ts";
 import { startTrace, withSpan } from "../../lib/tracer.ts";
 import {
-  isPlatformConfigured,
-  isAuthenticated as isPlatformAuthed,
-  pushMetadata,
   addJurisdiction,
-  registerChannel,
+  isAuthenticated as isPlatformAuthed,
+  isPlatformConfigured,
   listCouncils,
+  pushMetadata,
+  registerChannel,
 } from "../../lib/platform.ts";
 
 const PROGRESS_KEY = "council_create_progress";
 
 interface CreateProgress {
-  adminAddress?: string;       // wallet that started this deployment
-  authWasmHash?: string;       // hex-encoded
+  adminAddress?: string; // wallet that started this deployment
+  authWasmHash?: string; // hex-encoded
   channelAuthId?: string;
-  channelWasmHash?: string;    // hex-encoded
+  channelWasmHash?: string; // hex-encoded
   privacyChannelId?: string;
   assetContractId?: string;
-  councilIndex?: number;        // derivation index used for this council
-  step: number;                // 0-4 (0 = not started, 4 = done)
+  councilIndex?: number; // derivation index used for this council
+  step: number; // 0-4 (0 = not started, 4 = done)
 }
 
 // Use localStorage (not sessionStorage) so progress survives tab close.
@@ -69,7 +69,10 @@ function renderStep(): HTMLElement {
   const el = document.createElement("div");
 
   const metadata = getFormDraft("metadata") as {
-    name?: string; description?: string; contactEmail?: string; jurisdictions?: string[];
+    name?: string;
+    description?: string;
+    contactEmail?: string;
+    jurisdictions?: string[];
   } | null;
 
   const progress = loadProgress();
@@ -86,12 +89,18 @@ function renderStep(): HTMLElement {
       This will set up your Council. We need you to approve <strong>4 transactions</strong> (2 per step).
     </p>
 
-    ${metadata?.name ? `
+    ${
+    metadata?.name
+      ? `
       <div class="stat-card" style="margin-bottom:1.5rem">
         <span class="stat-label">Council</span>
-        <span class="stat-value" style="font-size:1.1rem">${escapeHtml(metadata.name)}</span>
+        <span class="stat-value" style="font-size:1.1rem">${
+        escapeHtml(metadata.name)
+      }</span>
       </div>
-    ` : ''}
+    `
+      : ""
+  }
 
     <div id="create-steps" style="margin-bottom:1rem">${stepsHtml}</div>
 
@@ -105,7 +114,11 @@ function renderStep(): HTMLElement {
   const createBtn = el.querySelector("#create-btn") as HTMLButtonElement;
   const errorEl = el.querySelector("#create-error") as HTMLParagraphElement;
 
-  function markStep(idx: number, status: "active" | "done" | "error", sub?: string) {
+  function markStep(
+    idx: number,
+    status: "active" | "done" | "error",
+    sub?: string,
+  ) {
     const stepEl = el.querySelector(`#cs-${STEPS[idx].id}`) as HTMLDivElement;
     if (!stepEl) return;
     stepEl.className = `deploy-step deploy-step-${status}`;
@@ -129,7 +142,8 @@ function renderStep(): HTMLElement {
     // Prevent a different wallet from resuming another user's deployment
     if (p.step > 0 && p.adminAddress && p.adminAddress !== adminAddress) {
       clearProgress();
-      errorEl.textContent = "Previous deployment was started by a different wallet. Starting fresh.";
+      errorEl.textContent =
+        "Previous deployment was started by a different wallet. Starting fresh.";
       errorEl.hidden = false;
       createBtn.disabled = false;
       createBtn.textContent = "Create Council";
@@ -158,7 +172,10 @@ function renderStep(): HTMLElement {
         markStep(0, "active", "1/2");
         await withSpan("create.install_auth", traceId, async () => {
           const authWasm = await fetchWasm("channel_auth_contract");
-          const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(authWasm, adminAddress);
+          const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(
+            authWasm,
+            adminAddress,
+          );
           const installSigned = await signTransaction(installXdr);
           await submitTx(installSigned);
           p.authWasmHash = bytesToHex(wasmHash);
@@ -171,9 +188,16 @@ function renderStep(): HTMLElement {
       // Step 1: Deploy Channel Auth
       if (p.step < 2) {
         await withSpan("create.deploy_auth", traceId, async () => {
-          const adminScVal = nativeToScVal(Address.fromString(adminAddress), { type: "address" });
+          const adminScVal = nativeToScVal(Address.fromString(adminAddress), {
+            type: "address",
+          });
           // Find the next available council index by scanning DB + on-chain
-          const { computeCouncilSalt, deriveContractAddress, sdk: getSdk, getRpcServer } = await import("../../lib/stellar.ts");
+          const {
+            computeCouncilSalt,
+            deriveContractAddress,
+            sdk: getSdk,
+            getRpcServer,
+          } = await import("../../lib/stellar.ts");
           const { getNetworkPassphrase } = await import("../../lib/config.ts");
           const stellar = await getSdk();
           const server = await getRpcServer();
@@ -192,14 +216,23 @@ function renderStep(): HTMLElement {
           let councilIndex = 0;
           const MAX_SCAN = 20;
           for (; councilIndex < MAX_SCAN; councilIndex++) {
-            const testSalt = await computeCouncilSalt(adminAddress, councilIndex);
-            const testAddr = await deriveContractAddress(adminAddress, testSalt);
+            const testSalt = await computeCouncilSalt(
+              adminAddress,
+              councilIndex,
+            );
+            const testAddr = await deriveContractAddress(
+              adminAddress,
+              testSalt,
+            );
             if (usedAddresses.has(testAddr)) continue;
             // Check on-chain — try to call admin() on the derived address
             try {
               const contract = new stellar.Contract(testAddr);
               const account = await server.getAccount(adminAddress);
-              const tx = new stellar.TransactionBuilder(account, { fee: "100", networkPassphrase: getNetworkPassphrase() })
+              const tx = new stellar.TransactionBuilder(account, {
+                fee: "100",
+                networkPassphrase: getNetworkPassphrase(),
+              })
                 .addOperation(contract.call("admin"))
                 .setTimeout(30)
                 .build();
@@ -208,8 +241,16 @@ function renderStep(): HTMLElement {
             } catch { /* not found — available */ }
             break;
           }
-          const councilSalt = await computeCouncilSalt(adminAddress, councilIndex);
-          const deployXdr = await buildDeployContractTx(hexToBytes(p.authWasmHash!), adminAddress, [adminScVal], councilSalt);
+          const councilSalt = await computeCouncilSalt(
+            adminAddress,
+            councilIndex,
+          );
+          const deployXdr = await buildDeployContractTx(
+            hexToBytes(p.authWasmHash!),
+            adminAddress,
+            [adminScVal],
+            councilSalt,
+          );
           const deploySigned = await signTransaction(deployXdr);
           const { contractId } = await submitTx(deploySigned);
           if (!contractId) throw new Error("Failed to create council");
@@ -226,7 +267,10 @@ function renderStep(): HTMLElement {
         markStep(1, "active", "1/2");
         await withSpan("create.install_channel", traceId, async () => {
           const channelWasm = await fetchWasm("privacy_channel");
-          const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(channelWasm, adminAddress);
+          const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(
+            channelWasm,
+            adminAddress,
+          );
           const installSigned = await signTransaction(installXdr);
           await submitTx(installSigned);
           p.channelWasmHash = bytesToHex(wasmHash);
@@ -239,14 +283,30 @@ function renderStep(): HTMLElement {
       // Step 3: Deploy Privacy Channel
       if (p.step < 4) {
         await withSpan("create.deploy_channel", traceId, async () => {
-          p.assetContractId = await ensureSacDeployed("XLM", undefined, adminAddress, signTransaction);
+          p.assetContractId = await ensureSacDeployed(
+            "XLM",
+            undefined,
+            adminAddress,
+            signTransaction,
+          );
           const channelArgs = [
-            nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
-            nativeToScVal(Address.fromString(p.channelAuthId!), { type: "address" }),
-            nativeToScVal(Address.fromString(p.assetContractId!), { type: "address" }),
+            nativeToScVal(Address.fromString(adminAddress), {
+              type: "address",
+            }),
+            nativeToScVal(Address.fromString(p.channelAuthId!), {
+              type: "address",
+            }),
+            nativeToScVal(Address.fromString(p.assetContractId!), {
+              type: "address",
+            }),
           ];
           const xlmSalt = await computeDeploySalt(p.channelAuthId!, "XLM");
-          const deployXdr = await buildDeployContractTx(hexToBytes(p.channelWasmHash!), adminAddress, channelArgs, xlmSalt);
+          const deployXdr = await buildDeployContractTx(
+            hexToBytes(p.channelWasmHash!),
+            adminAddress,
+            channelArgs,
+            xlmSalt,
+          );
           const deploySigned = await signTransaction(deployXdr);
           const { contractId } = await submitTx(deploySigned);
           if (!contractId) throw new Error("Failed to create privacy channel");
@@ -259,7 +319,10 @@ function renderStep(): HTMLElement {
 
       // Store the council ID and index so subsequent onboarding steps can find the right council
       sessionStorage.setItem("onboarding_council_id", p.channelAuthId!);
-      sessionStorage.setItem("onboarding_council_index", String(p.councilIndex ?? 0));
+      sessionStorage.setItem(
+        "onboarding_council_index",
+        String(p.councilIndex ?? 0),
+      );
 
       // Push metadata, jurisdictions, and XLM channel to platform (uses existing JWT from login)
       if (isPlatformConfigured() && isPlatformAuthed()) {
@@ -274,7 +337,9 @@ function renderStep(): HTMLElement {
           }
           if (metadata?.jurisdictions) {
             for (const code of metadata.jurisdictions) {
-              const entry = COUNTRY_CODES.find((c: { code: string }) => c.code === code);
+              const entry = COUNTRY_CODES.find((c: { code: string }) =>
+                c.code === code
+              );
               await addJurisdiction(p.channelAuthId!, code, entry?.label);
             }
           }
@@ -291,7 +356,10 @@ function renderStep(): HTMLElement {
       }
 
       // Don't clear metadata draft yet — the fund step needs it for the name
-      capture("council_created", { channelAuthId: p.channelAuthId, privacyChannelId: p.privacyChannelId });
+      capture("council_created", {
+        channelAuthId: p.channelAuthId,
+        privacyChannelId: p.privacyChannelId,
+      });
       clearProgress();
 
       createBtn.hidden = true;
@@ -307,7 +375,8 @@ function renderStep(): HTMLElement {
           if (addr) {
             const { funded } = await getAccountBalance(addr);
             if (!funded) {
-              msg = "Your wallet account is not funded. Please add XLM to your wallet before creating a council.";
+              msg =
+                "Your wallet account is not funded. Please add XLM to your wallet before creating a council.";
             }
           }
         } catch { /* ignore balance check errors */ }

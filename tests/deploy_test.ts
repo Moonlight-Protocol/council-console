@@ -16,19 +16,21 @@
  *
  * Run with: deno test --allow-all tests/deploy_test.ts
  */
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { resolve } from "jsr:@std/path";
+import { assertEquals, assertExists } from "@std/assert";
+import { resolve } from "@std/path";
 import { Buffer } from "buffer";
 
-const RPC_URL = Deno.env.get("STELLAR_RPC_URL") ?? "http://localhost:8000/soroban/rpc";
-const FRIENDBOT_URL = Deno.env.get("FRIENDBOT_URL") ?? "http://localhost:8000/friendbot";
+const RPC_URL = Deno.env.get("STELLAR_RPC_URL") ??
+  "http://localhost:8000/soroban/rpc";
+const FRIENDBOT_URL = Deno.env.get("FRIENDBOT_URL") ??
+  "http://localhost:8000/friendbot";
 const NETWORK_PASSPHRASE = "Standalone Network ; February 2017";
 
 // WASM_DIR: directory with pre-built .wasm files (from GitHub releases)
 // Falls back to soroban-core build output for local dev
 const WASM_DIR = Deno.env.get("WASM_DIR");
-const SOROBAN_CORE_PATH = Deno.env.get("SOROBAN_CORE_PATH")
-  ?? resolve(Deno.env.get("HOME") ?? "", "repos/soroban-core");
+const SOROBAN_CORE_PATH = Deno.env.get("SOROBAN_CORE_PATH") ??
+  resolve(Deno.env.get("HOME") ?? "", "repos/soroban-core");
 
 // deno-lint-ignore no-explicit-any
 let stellar: any;
@@ -52,11 +54,13 @@ async function fundAccount(publicKey: string) {
 
 async function loadWasm(contractName: string): Promise<Uint8Array> {
   // Try WASM_DIR first (pre-built from GitHub releases), then soroban-core build output
-  const candidates = WASM_DIR
-    ? [resolve(WASM_DIR, `${contractName}.wasm`)]
-    : [
-        resolve(SOROBAN_CORE_PATH, "target/wasm32v1-none/release", `${contractName}.wasm`),
-      ];
+  const candidates = WASM_DIR ? [resolve(WASM_DIR, `${contractName}.wasm`)] : [
+    resolve(
+      SOROBAN_CORE_PATH,
+      "target/wasm32v1-none/release",
+      `${contractName}.wasm`,
+    ),
+  ];
 
   for (const path of candidates) {
     try {
@@ -123,7 +127,15 @@ Deno.test({
   name: "deploy flow: Channel Auth + Privacy Channel + add/remove provider",
   async fn() {
     const sdk = await loadSdk();
-    const { Keypair, TransactionBuilder, Operation, xdr, Address, nativeToScVal, Contract } = sdk;
+    const {
+      Keypair,
+      TransactionBuilder,
+      Operation,
+      xdr,
+      Address,
+      nativeToScVal,
+      Contract,
+    } = sdk;
     const server = await getRpcServer();
 
     // Generate fresh keypairs
@@ -145,7 +157,10 @@ Deno.test({
     console.log("  Installing Channel Auth WASM...");
     const account1 = await server.getAccount(admin.publicKey());
     const installAuthResult = await buildSimulateSign(
-      new TransactionBuilder(account1, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account1, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(Operation.invokeHostFunction({
           func: xdr.HostFunction.hostFunctionTypeUploadContractWasm(authWasm),
           auth: [],
@@ -161,21 +176,30 @@ Deno.test({
     const account2 = await server.getAccount(admin.publicKey());
     const salt1 = crypto.getRandomValues(new Uint8Array(32));
     const deployAuthResult = await buildSimulateSign(
-      new TransactionBuilder(account2, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account2, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(Operation.invokeHostFunction({
           func: xdr.HostFunction.hostFunctionTypeCreateContractV2(
             new xdr.CreateContractArgsV2({
-              contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-                new xdr.ContractIdPreimageFromAddress({
-                  address: Address.fromString(admin.publicKey()).toScAddress(),
-                  salt: Buffer.from(salt1),
-                })
+              contractIdPreimage: xdr.ContractIdPreimage
+                .contractIdPreimageFromAddress(
+                  new xdr.ContractIdPreimageFromAddress({
+                    address: Address.fromString(admin.publicKey())
+                      .toScAddress(),
+                    salt: Buffer.from(salt1),
+                  }),
+                ),
+              executable: xdr.ContractExecutable.contractExecutableWasm(
+                Buffer.from(authWasmHash),
               ),
-              executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(authWasmHash)),
               constructorArgs: [
-                nativeToScVal(Address.fromString(admin.publicKey()), { type: "address" }),
+                nativeToScVal(Address.fromString(admin.publicKey()), {
+                  type: "address",
+                }),
               ],
-            })
+            }),
           ),
           auth: [],
         })),
@@ -191,9 +215,14 @@ Deno.test({
     console.log("  Installing Privacy Channel WASM...");
     const account3 = await server.getAccount(admin.publicKey());
     const installChResult = await buildSimulateSign(
-      new TransactionBuilder(account3, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account3, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(Operation.invokeHostFunction({
-          func: xdr.HostFunction.hostFunctionTypeUploadContractWasm(channelWasm),
+          func: xdr.HostFunction.hostFunctionTypeUploadContractWasm(
+            channelWasm,
+          ),
           auth: [],
         })),
       admin,
@@ -210,23 +239,34 @@ Deno.test({
     const account4 = await server.getAccount(admin.publicKey());
     const salt2 = crypto.getRandomValues(new Uint8Array(32));
     const deployChResult = await buildSimulateSign(
-      new TransactionBuilder(account4, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account4, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(Operation.invokeHostFunction({
           func: xdr.HostFunction.hostFunctionTypeCreateContractV2(
             new xdr.CreateContractArgsV2({
-              contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-                new xdr.ContractIdPreimageFromAddress({
-                  address: Address.fromString(admin.publicKey()).toScAddress(),
-                  salt: Buffer.from(salt2),
-                })
+              contractIdPreimage: xdr.ContractIdPreimage
+                .contractIdPreimageFromAddress(
+                  new xdr.ContractIdPreimageFromAddress({
+                    address: Address.fromString(admin.publicKey())
+                      .toScAddress(),
+                    salt: Buffer.from(salt2),
+                  }),
+                ),
+              executable: xdr.ContractExecutable.contractExecutableWasm(
+                Buffer.from(channelWasmHash),
               ),
-              executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(channelWasmHash)),
               constructorArgs: [
-                nativeToScVal(Address.fromString(admin.publicKey()), { type: "address" }),
-                nativeToScVal(Address.fromString(channelAuthId!), { type: "address" }),
+                nativeToScVal(Address.fromString(admin.publicKey()), {
+                  type: "address",
+                }),
+                nativeToScVal(Address.fromString(channelAuthId!), {
+                  type: "address",
+                }),
                 nativeToScVal(Address.fromString(xlmSac), { type: "address" }),
               ],
-            })
+            }),
           ),
           auth: [],
         })),
@@ -243,10 +283,15 @@ Deno.test({
     const contract = new Contract(channelAuthId!);
     const account5 = await server.getAccount(admin.publicKey());
     const addResult = await buildSimulateSign(
-      new TransactionBuilder(account5, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account5, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(contract.call(
           "add_provider",
-          nativeToScVal(Address.fromString(provider.publicKey()), { type: "address" }),
+          nativeToScVal(Address.fromString(provider.publicKey()), {
+            type: "address",
+          }),
         )),
       admin,
       server,
@@ -258,10 +303,15 @@ Deno.test({
     console.log("  Verifying provider...");
     const account6 = await server.getAccount(admin.publicKey());
     const checkResult = await buildSimulateSign(
-      new TransactionBuilder(account6, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account6, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(contract.call(
           "is_provider",
-          nativeToScVal(Address.fromString(provider.publicKey()), { type: "address" }),
+          nativeToScVal(Address.fromString(provider.publicKey()), {
+            type: "address",
+          }),
         )),
       admin,
       server,
@@ -272,10 +322,15 @@ Deno.test({
     console.log("  Removing provider...");
     const account7 = await server.getAccount(admin.publicKey());
     const removeResult = await buildSimulateSign(
-      new TransactionBuilder(account7, { fee: "10000000", networkPassphrase: NETWORK_PASSPHRASE })
+      new TransactionBuilder(account7, {
+        fee: "10000000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
         .addOperation(contract.call(
           "remove_provider",
-          nativeToScVal(Address.fromString(provider.publicKey()), { type: "address" }),
+          nativeToScVal(Address.fromString(provider.publicKey()), {
+            type: "address",
+          }),
         )),
       admin,
       server,

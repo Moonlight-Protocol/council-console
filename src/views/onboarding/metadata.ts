@@ -1,7 +1,7 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
 import { COUNTRY_CODES } from "../../lib/jurisdictions.ts";
-import { saveFormDraft, getFormDraft } from "../../lib/onboarding.ts";
+import { getFormDraft, saveFormDraft } from "../../lib/onboarding.ts";
 import { capture } from "../../lib/analytics.ts";
 import { escapeHtml } from "../../lib/dom.ts";
 
@@ -10,7 +10,10 @@ function renderStep(): HTMLElement {
 
   // Restore draft if any
   const draft = getFormDraft("metadata") as {
-    name?: string; description?: string; contactEmail?: string; jurisdictions?: string[];
+    name?: string;
+    description?: string;
+    contactEmail?: string;
+    jurisdictions?: string[];
   } | null;
 
   el.innerHTML = `
@@ -21,7 +24,9 @@ function renderStep(): HTMLElement {
 
     <div class="form-group">
       <label>Council Name *</label>
-      <input type="text" id="council-name" placeholder="e.g. Moonlight Beta" value="${escapeHtml(draft?.name ?? '')}" />
+      <input type="text" id="council-name" placeholder="e.g. Moonlight Beta" value="${
+    escapeHtml(draft?.name ?? "")
+  }" />
     </div>
 
     <div class="form-group">
@@ -33,7 +38,9 @@ function renderStep(): HTMLElement {
 
     <div class="form-group">
       <label>Contact Email</label>
-      <input type="email" id="council-email" placeholder="admin@example.com" value="${escapeHtml(draft?.contactEmail ?? '')}" />
+      <input type="email" id="council-email" placeholder="admin@example.com" value="${
+    escapeHtml(draft?.contactEmail ?? "")
+  }" />
     </div>
 
     <div class="form-group">
@@ -54,7 +61,8 @@ function renderStep(): HTMLElement {
 
   // Set textarea value via DOM to prevent </textarea> breakout XSS
   if (draft?.description) {
-    (el.querySelector("#council-description") as HTMLTextAreaElement).value = draft.description;
+    (el.querySelector("#council-description") as HTMLTextAreaElement).value =
+      draft.description;
   }
 
   // --- Jurisdiction picker ---
@@ -80,7 +88,8 @@ function renderStep(): HTMLElement {
       tag.textContent = `${entry.code} `;
       const x = document.createElement("button");
       x.textContent = "\u00d7";
-      x.style.cssText = "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
+      x.style.cssText =
+        "background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0 0 0 0.25rem;font-size:1rem";
       x.addEventListener("click", () => {
         selectedJurisdictions.delete(code);
         renderTags();
@@ -97,25 +106,34 @@ function renderStep(): HTMLElement {
 
     if (q.length < 2) {
       const hint = document.createElement("p");
-      hint.style.cssText = "color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0.75rem";
+      hint.style.cssText =
+        "color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0.75rem";
       hint.textContent = "Type at least 2 characters to search...";
       listEl.appendChild(hint);
       return;
     }
 
     for (const country of COUNTRY_CODES) {
-      if (!country.label.toLowerCase().includes(q) && !country.code.toLowerCase().includes(q)) continue;
+      if (
+        !country.label.toLowerCase().includes(q) &&
+        !country.code.toLowerCase().includes(q)
+      ) continue;
       const selected = selectedJurisdictions.has(country.code);
       const option = document.createElement("div");
       option.className = "jurisdiction-option" + (selected ? " selected" : "");
-      const flag = country.code.toUpperCase().replace(/./g, (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+      const flag = country.code.toUpperCase().replace(
+        /./g,
+        (c: string) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65),
+      );
       option.textContent = `${flag} ${country.label}`;
       option.addEventListener("click", () => {
         if (selected) selectedJurisdictions.delete(country.code);
         else selectedJurisdictions.add(country.code);
         renderTags();
-        if (!selected) { filterEl.value = ""; renderList(""); }
-        else renderList(filterEl.value);
+        if (!selected) {
+          filterEl.value = "";
+          renderList("");
+        } else renderList(filterEl.value);
       });
       listEl.appendChild(option);
     }
@@ -128,24 +146,35 @@ function renderStep(): HTMLElement {
   // Auto-save draft on input
   function saveDraft() {
     saveFormDraft("metadata", {
-      name: (el.querySelector("#council-name") as HTMLInputElement).value.trim(),
-      description: (el.querySelector("#council-description") as HTMLTextAreaElement).value.trim(),
-      contactEmail: (el.querySelector("#council-email") as HTMLInputElement).value.trim(),
+      name: (el.querySelector("#council-name") as HTMLInputElement).value
+        .trim(),
+      description:
+        (el.querySelector("#council-description") as HTMLTextAreaElement).value
+          .trim(),
+      contactEmail: (el.querySelector("#council-email") as HTMLInputElement)
+        .value.trim(),
       jurisdictions: Array.from(selectedJurisdictions),
     });
   }
   el.querySelector("#council-name")?.addEventListener("input", saveDraft);
-  el.querySelector("#council-description")?.addEventListener("input", saveDraft);
+  el.querySelector("#council-description")?.addEventListener(
+    "input",
+    saveDraft,
+  );
   el.querySelector("#council-email")?.addEventListener("input", saveDraft);
 
   // --- Next button ---
   const errorEl = el.querySelector("#meta-error") as HTMLParagraphElement;
   const nextBtn = el.querySelector("#next-btn") as HTMLButtonElement;
 
-  nextBtn.addEventListener("click", async () => {
-    const name = (el.querySelector("#council-name") as HTMLInputElement).value.trim();
-    const description = (el.querySelector("#council-description") as HTMLTextAreaElement).value.trim();
-    const contactEmail = (el.querySelector("#council-email") as HTMLInputElement).value.trim();
+  nextBtn.addEventListener("click", () => {
+    const name = (el.querySelector("#council-name") as HTMLInputElement).value
+      .trim();
+    const description =
+      (el.querySelector("#council-description") as HTMLTextAreaElement).value
+        .trim();
+    const contactEmail =
+      (el.querySelector("#council-email") as HTMLInputElement).value.trim();
     const jurisdictions = Array.from(selectedJurisdictions);
 
     if (!name) {
@@ -157,7 +186,12 @@ function renderStep(): HTMLElement {
     errorEl.hidden = true;
 
     // Save to sessionStorage — platform push happens in the create step
-    saveFormDraft("metadata", { name, description, contactEmail, jurisdictions });
+    saveFormDraft("metadata", {
+      name,
+      description,
+      contactEmail,
+      jurisdictions,
+    });
     capture("onboarding_metadata_complete", { name });
     navigate("/create-council/create");
   });

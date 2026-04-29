@@ -2,7 +2,9 @@
  * Bundles src/app.ts into public/app.js for the browser.
  * Uses esbuild via Deno with denoPlugins for import map resolution.
  */
+// deno-lint-ignore no-import-prefix -- build script intentionally pins the URL
 import * as esbuild from "https://deno.land/x/esbuild@v0.20.1/mod.js";
+// deno-lint-ignore no-import-prefix -- build script intentionally pins the version
 import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@0.10";
 
 const isProduction = Deno.args.includes("--production");
@@ -15,8 +17,11 @@ const WASM_FILES = ["channel_auth_contract.wasm", "privacy_channel.wasm"];
 const WASM_VERSION = Deno.env.get("SOROBAN_CORE_VERSION") || "latest";
 
 async function resolvesorobanCoreVersion(): Promise<string> {
-  const baseUrl = "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
-  const releaseUrl = WASM_VERSION === "latest" ? `${baseUrl}/latest` : `${baseUrl}/tags/${WASM_VERSION}`;
+  const baseUrl =
+    "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
+  const releaseUrl = WASM_VERSION === "latest"
+    ? `${baseUrl}/latest`
+    : `${baseUrl}/tags/${WASM_VERSION}`;
   const res = await fetch(releaseUrl);
   if (!res.ok) return "unknown";
   const release = await res.json();
@@ -34,21 +39,35 @@ async function downloadWasms(): Promise<string> {
   // Check if already downloaded
   const allExist = (await Promise.all(
     WASM_FILES.map(async (f) => {
-      try { await Deno.stat(`${WASM_DIR}/${f}`); return true; } catch { return false; }
+      try {
+        await Deno.stat(`${WASM_DIR}/${f}`);
+        return true;
+      } catch {
+        return false;
+      }
     }),
   )).every(Boolean);
 
   if (allExist) {
-    console.log(`Contract WASMs already present (soroban-core ${resolvedVersion}), skipping download.`);
+    console.log(
+      `Contract WASMs already present (soroban-core ${resolvedVersion}), skipping download.`,
+    );
     return resolvedVersion;
   }
 
-  const baseUrl = "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
-  const releaseUrl = WASM_VERSION === "latest" ? `${baseUrl}/latest` : `${baseUrl}/tags/${WASM_VERSION}`;
+  const baseUrl =
+    "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases";
+  const releaseUrl = WASM_VERSION === "latest"
+    ? `${baseUrl}/latest`
+    : `${baseUrl}/tags/${WASM_VERSION}`;
 
-  console.log(`Fetching contract WASMs from soroban-core ${resolvedVersion}...`);
+  console.log(
+    `Fetching contract WASMs from soroban-core ${resolvedVersion}...`,
+  );
   const releaseRes = await fetch(releaseUrl);
-  if (!releaseRes.ok) throw new Error(`Failed to fetch release: ${releaseRes.status}`);
+  if (!releaseRes.ok) {
+    throw new Error(`Failed to fetch release: ${releaseRes.status}`);
+  }
   const release = await releaseRes.json();
 
   for (const name of WASM_FILES) {
@@ -104,7 +123,7 @@ if (appJs === before) {
   esbuild.stop();
   throw new Error(
     "Build failed: could not patch __require for buffer polyfill. " +
-    "esbuild's CJS shim format may have changed.",
+      "esbuild's CJS shim format may have changed.",
   );
 }
 

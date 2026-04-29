@@ -1,52 +1,7 @@
 import { page } from "../components/page.ts";
-import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { addCouncil, getCouncil } from "../lib/store.ts";
 import { navigate } from "../lib/router.ts";
 import { capture } from "../lib/analytics.ts";
-
-async function queryCouncilOnChain(channelAuthId: string): Promise<{
-  admin: string;
-  providers: string[];
-}> {
-  const { buildInvokeContractTx, getRpcServer, sdk } = await import("../lib/stellar.ts");
-  const stellar = await sdk();
-  const server = await getRpcServer();
-
-  // Query admin
-  const { Contract, TransactionBuilder, Keypair } = stellar;
-  const contract = new Contract(channelAuthId);
-
-  // Use a throwaway keypair to build read-only queries (no signing needed)
-  const throwaway = Keypair.random() as { publicKey(): string };
-  const sourceKey = throwaway.publicKey();
-
-  // Fund not needed for simulation-only queries
-  const account = await server.getAccount(sourceKey).catch(() => null);
-  if (!account) {
-    // Account doesn't exist — for read-only we can still simulate
-    // by using any valid account. Try the admin query via direct RPC.
-    throw new Error("Could not query contract. Make sure the contract ID is valid and the network is reachable.");
-  }
-
-  const adminTx = new TransactionBuilder(account, {
-    fee: "100",
-    networkPassphrase: (await import("../lib/stellar.ts")).NETWORK_PASSPHRASE,
-  })
-    .addOperation(contract.call("admin"))
-    .setTimeout(30)
-    .build();
-
-  const adminSim = await server.simulateTransaction(adminTx);
-  if ("error" in adminSim && adminSim.error) {
-    throw new Error(`Failed to query admin: ${adminSim.error}`);
-  }
-
-  // Extract admin address from simulation result
-  const adminResult = (adminSim as { result?: { retval?: { address?(): { accountId?(): string } } } }).result;
-  const adminAddress = adminResult?.retval?.address?.()?.accountId?.() ?? "";
-
-  return { admin: adminAddress, providers: [] };
-}
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -96,15 +51,28 @@ function renderContent(): HTMLElement {
   const errorEl = el.querySelector("#import-error") as HTMLParagraphElement;
 
   importBtn.addEventListener("click", async () => {
-    const channelAuthId = (el.querySelector("#channel-auth-id") as HTMLInputElement).value.trim();
-    const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim() || "XLM";
-    const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim() || undefined;
-    const privacyChannelId = (el.querySelector("#privacy-channel-id") as HTMLInputElement).value.trim() || undefined;
-    const providersRaw = (el.querySelector("#known-providers") as HTMLTextAreaElement).value.trim();
+    const channelAuthId =
+      (el.querySelector("#channel-auth-id") as HTMLInputElement).value.trim();
+    const assetCode =
+      (el.querySelector("#asset-code") as HTMLInputElement).value.trim() ||
+      "XLM";
+    const assetIssuer =
+      (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim() ||
+      undefined;
+    const privacyChannelId =
+      (el.querySelector("#privacy-channel-id") as HTMLInputElement).value
+        .trim() || undefined;
+    const providersRaw =
+      (el.querySelector("#known-providers") as HTMLTextAreaElement).value
+        .trim();
     const providers = providersRaw
-      ? providersRaw.split("\n").map((l) => l.trim()).filter((l) => l.length > 0)
+      ? providersRaw.split("\n").map((l) => l.trim()).filter((l) =>
+        l.length > 0
+      )
       : [];
-    const label = (el.querySelector("#council-label") as HTMLInputElement).value.trim() || undefined;
+    const label =
+      (el.querySelector("#council-label") as HTMLInputElement).value.trim() ||
+      undefined;
 
     if (!channelAuthId) {
       errorEl.textContent = "Channel Auth Contract ID is required";
@@ -143,7 +111,9 @@ function renderContent(): HTMLElement {
 
       setTimeout(() => navigate("/"), 1000);
     } catch (error) {
-      errorEl.textContent = error instanceof Error ? error.message : "Import failed";
+      errorEl.textContent = error instanceof Error
+        ? error.message
+        : "Import failed";
       errorEl.hidden = false;
       statusEl.hidden = true;
     } finally {

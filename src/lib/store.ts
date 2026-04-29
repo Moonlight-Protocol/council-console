@@ -47,7 +47,10 @@ export function addCouncil(council: ManagedCouncil): void {
   saveCouncils(councils);
 }
 
-export function updateCouncil(channelAuthId: string, update: Partial<ManagedCouncil>): void {
+export function updateCouncil(
+  channelAuthId: string,
+  update: Partial<ManagedCouncil>,
+): void {
   const councils = loadCouncils();
   const idx = councils.findIndex((c) => c.channelAuthId === channelAuthId);
   if (idx === -1) return;
@@ -56,7 +59,9 @@ export function updateCouncil(channelAuthId: string, update: Partial<ManagedCoun
 }
 
 export function removeCouncil(channelAuthId: string): void {
-  const councils = loadCouncils().filter((c) => c.channelAuthId !== channelAuthId);
+  const councils = loadCouncils().filter((c) =>
+    c.channelAuthId !== channelAuthId
+  );
   saveCouncils(councils);
 }
 

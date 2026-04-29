@@ -3320,6 +3320,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@std/assert@1",
       "jsr:@std/path@1",
       "npm:@creit.tech/stellar-wallets-kit@^1.4.0",
       "npm:@stellar/freighter-api@3",

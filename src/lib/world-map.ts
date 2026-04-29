@@ -8,33 +8,62 @@ const SVG_VB_Y = 241.591;
 const SVG_VB_W = 784.077;
 const SVG_VB_H = 458.627;
 
-export const COUNTRIES: Record<string, { lon: number; lat: number; name: string }> = {
-  US: { lon: -98, lat: 39, name: "United States" }, CA: { lon: -106, lat: 56, name: "Canada" },
-  MX: { lon: -102, lat: 23, name: "Mexico" }, BR: { lon: -51, lat: -14, name: "Brazil" },
-  AR: { lon: -64, lat: -34, name: "Argentina" }, CL: { lon: -71, lat: -35, name: "Chile" },
-  CO: { lon: -74, lat: 4, name: "Colombia" }, PE: { lon: -76, lat: -10, name: "Peru" },
-  UY: { lon: -56, lat: -33, name: "Uruguay" }, PY: { lon: -58, lat: -23, name: "Paraguay" },
-  EC: { lon: -78, lat: -2, name: "Ecuador" }, VE: { lon: -66, lat: 8, name: "Venezuela" },
-  CR: { lon: -84, lat: 10, name: "Costa Rica" }, PA: { lon: -80, lat: 9, name: "Panama" },
-  GB: { lon: -2, lat: 54, name: "United Kingdom" }, DE: { lon: 10, lat: 51, name: "Germany" },
-  FR: { lon: 2, lat: 46, name: "France" }, ES: { lon: -4, lat: 40, name: "Spain" },
-  IT: { lon: 12, lat: 42, name: "Italy" }, CH: { lon: 8, lat: 47, name: "Switzerland" },
-  NL: { lon: 5, lat: 52, name: "Netherlands" }, SE: { lon: 18, lat: 60, name: "Sweden" },
-  NO: { lon: 10, lat: 62, name: "Norway" }, FI: { lon: 26, lat: 64, name: "Finland" },
-  PT: { lon: -8, lat: 39, name: "Portugal" }, IE: { lon: -8, lat: 53, name: "Ireland" },
-  PL: { lon: 20, lat: 52, name: "Poland" }, AT: { lon: 14, lat: 47, name: "Austria" },
-  BE: { lon: 4, lat: 51, name: "Belgium" }, UA: { lon: 32, lat: 49, name: "Ukraine" },
-  RU: { lon: 40, lat: 56, name: "Russia" }, NG: { lon: 8, lat: 10, name: "Nigeria" },
-  ZA: { lon: 25, lat: -29, name: "South Africa" }, KE: { lon: 38, lat: 0, name: "Kenya" },
-  EG: { lon: 30, lat: 27, name: "Egypt" }, MA: { lon: -5, lat: 32, name: "Morocco" },
-  GH: { lon: -2, lat: 8, name: "Ghana" }, AE: { lon: 54, lat: 24, name: "UAE" },
-  SA: { lon: 45, lat: 24, name: "Saudi Arabia" }, IL: { lon: 35, lat: 31, name: "Israel" },
-  TR: { lon: 32, lat: 39, name: "Turkey" }, IN: { lon: 78, lat: 21, name: "India" },
-  CN: { lon: 104, lat: 35, name: "China" }, JP: { lon: 138, lat: 36, name: "Japan" },
-  KR: { lon: 128, lat: 36, name: "South Korea" }, SG: { lon: 104, lat: 1, name: "Singapore" },
-  TH: { lon: 101, lat: 15, name: "Thailand" }, VN: { lon: 108, lat: 14, name: "Vietnam" },
-  ID: { lon: 113, lat: -1, name: "Indonesia" }, PH: { lon: 122, lat: 13, name: "Philippines" },
-  MY: { lon: 102, lat: 4, name: "Malaysia" }, AU: { lon: 133, lat: -25, name: "Australia" },
+export const COUNTRIES: Record<
+  string,
+  { lon: number; lat: number; name: string }
+> = {
+  US: { lon: -98, lat: 39, name: "United States" },
+  CA: { lon: -106, lat: 56, name: "Canada" },
+  MX: { lon: -102, lat: 23, name: "Mexico" },
+  BR: { lon: -51, lat: -14, name: "Brazil" },
+  AR: { lon: -64, lat: -34, name: "Argentina" },
+  CL: { lon: -71, lat: -35, name: "Chile" },
+  CO: { lon: -74, lat: 4, name: "Colombia" },
+  PE: { lon: -76, lat: -10, name: "Peru" },
+  UY: { lon: -56, lat: -33, name: "Uruguay" },
+  PY: { lon: -58, lat: -23, name: "Paraguay" },
+  EC: { lon: -78, lat: -2, name: "Ecuador" },
+  VE: { lon: -66, lat: 8, name: "Venezuela" },
+  CR: { lon: -84, lat: 10, name: "Costa Rica" },
+  PA: { lon: -80, lat: 9, name: "Panama" },
+  GB: { lon: -2, lat: 54, name: "United Kingdom" },
+  DE: { lon: 10, lat: 51, name: "Germany" },
+  FR: { lon: 2, lat: 46, name: "France" },
+  ES: { lon: -4, lat: 40, name: "Spain" },
+  IT: { lon: 12, lat: 42, name: "Italy" },
+  CH: { lon: 8, lat: 47, name: "Switzerland" },
+  NL: { lon: 5, lat: 52, name: "Netherlands" },
+  SE: { lon: 18, lat: 60, name: "Sweden" },
+  NO: { lon: 10, lat: 62, name: "Norway" },
+  FI: { lon: 26, lat: 64, name: "Finland" },
+  PT: { lon: -8, lat: 39, name: "Portugal" },
+  IE: { lon: -8, lat: 53, name: "Ireland" },
+  PL: { lon: 20, lat: 52, name: "Poland" },
+  AT: { lon: 14, lat: 47, name: "Austria" },
+  BE: { lon: 4, lat: 51, name: "Belgium" },
+  UA: { lon: 32, lat: 49, name: "Ukraine" },
+  RU: { lon: 40, lat: 56, name: "Russia" },
+  NG: { lon: 8, lat: 10, name: "Nigeria" },
+  ZA: { lon: 25, lat: -29, name: "South Africa" },
+  KE: { lon: 38, lat: 0, name: "Kenya" },
+  EG: { lon: 30, lat: 27, name: "Egypt" },
+  MA: { lon: -5, lat: 32, name: "Morocco" },
+  GH: { lon: -2, lat: 8, name: "Ghana" },
+  AE: { lon: 54, lat: 24, name: "UAE" },
+  SA: { lon: 45, lat: 24, name: "Saudi Arabia" },
+  IL: { lon: 35, lat: 31, name: "Israel" },
+  TR: { lon: 32, lat: 39, name: "Turkey" },
+  IN: { lon: 78, lat: 21, name: "India" },
+  CN: { lon: 104, lat: 35, name: "China" },
+  JP: { lon: 138, lat: 36, name: "Japan" },
+  KR: { lon: 128, lat: 36, name: "South Korea" },
+  SG: { lon: 104, lat: 1, name: "Singapore" },
+  TH: { lon: 101, lat: 15, name: "Thailand" },
+  VN: { lon: 108, lat: 14, name: "Vietnam" },
+  ID: { lon: 113, lat: -1, name: "Indonesia" },
+  PH: { lon: 122, lat: 13, name: "Philippines" },
+  MY: { lon: 102, lat: 4, name: "Malaysia" },
+  AU: { lon: 133, lat: -25, name: "Australia" },
   NZ: { lon: 174, lat: -41, name: "New Zealand" },
 };
 
@@ -52,13 +81,16 @@ export function getCountryName(code: string): string {
 }
 
 function escapeXml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
  * Build an SVG string showing the world map with jurisdiction pins.
  */
-export async function renderJurisdictionMap(jurisdictions: string[]): Promise<string> {
+export async function renderJurisdictionMap(
+  jurisdictions: string[],
+): Promise<string> {
   const res = await fetch("/world-map.svg");
   if (!res.ok) return "";
   const svgText = await res.text();
@@ -101,9 +133,17 @@ export async function renderJurisdictionMap(jurisdictions: string[]): Promise<st
       const isHighlighted = codes.has(id.toLowerCase());
       let processed = inner;
       if (isHighlighted) {
-        processed = processed.replace(new RegExp(`fill="${BASE}"`, "g"), `fill="${HIGHLIGHT}"`);
+        processed = processed.replace(
+          new RegExp(`fill="${BASE}"`, "g"),
+          `fill="${HIGHLIGHT}"`,
+        );
       }
-      return `${open.replace(/>$/, ` data-country="${escapeXml(code)}" style="cursor:pointer">`)}` +
+      return `${
+        open.replace(
+          />$/,
+          ` data-country="${escapeXml(code)}" style="cursor:pointer">`,
+        )
+      }` +
         `<title>${escapeXml(name)}</title>${processed}${close}`;
     },
   );

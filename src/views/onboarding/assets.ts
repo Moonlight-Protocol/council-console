@@ -1,7 +1,11 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
 import { getConnectedAddress } from "../../lib/wallet.ts";
-import { isPlatformConfigured, isAuthenticated as isPlatformAuthed, registerChannel } from "../../lib/platform.ts";
+import {
+  isAuthenticated as isPlatformAuthed,
+  isPlatformConfigured,
+  registerChannel,
+} from "../../lib/platform.ts";
 import { capture } from "../../lib/analytics.ts";
 import { startTrace, withSpan } from "../../lib/tracer.ts";
 import { friendlyError } from "../../lib/dom.ts";
@@ -56,11 +60,16 @@ function renderStep(): HTMLElement {
   const stepsEl = el.querySelector("#asset-deploy-steps") as HTMLDivElement;
   const assetErrorEl = el.querySelector("#asset-error") as HTMLParagraphElement;
 
-  continueBtn.addEventListener("click", () => navigate("/create-council/invite"));
+  continueBtn.addEventListener(
+    "click",
+    () => navigate("/create-council/invite"),
+  );
 
   addBtn.addEventListener("click", async () => {
-    const assetCode = (el.querySelector("#asset-code") as HTMLInputElement).value.trim();
-    const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement).value.trim();
+    const assetCode = (el.querySelector("#asset-code") as HTMLInputElement)
+      .value.trim();
+    const assetIssuer = (el.querySelector("#asset-issuer") as HTMLInputElement)
+      .value.trim();
 
     if (!assetCode) {
       assetErrorEl.textContent = "Asset code is required";
@@ -109,21 +118,42 @@ function renderStep(): HTMLElement {
 
       await withSpan(`asset.enable_${assetCode}`, traceId, async () => {
         const wasm = await fetchWasm("privacy_channel");
-        const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(wasm, adminAddress);
+        const { xdr: installXdr, wasmHash } = await buildInstallWasmTx(
+          wasm,
+          adminAddress,
+        );
         const installSigned = await signTransaction(installXdr);
         await submitTx(installSigned);
 
-        assetContractId = await ensureSacDeployed(assetCode, assetIssuer, adminAddress, signTransaction);
+        assetContractId = await ensureSacDeployed(
+          assetCode,
+          assetIssuer,
+          adminAddress,
+          signTransaction,
+        );
         const args = [
           nativeToScVal(Address.fromString(adminAddress), { type: "address" }),
           nativeToScVal(Address.fromString(councilId), { type: "address" }),
-          nativeToScVal(Address.fromString(assetContractId), { type: "address" }),
+          nativeToScVal(Address.fromString(assetContractId), {
+            type: "address",
+          }),
         ];
-        const assetSalt = await computeDeploySalt(councilId, assetCode, assetIssuer);
-        const deployXdr = await buildDeployContractTx(wasmHash, adminAddress, args, assetSalt);
+        const assetSalt = await computeDeploySalt(
+          councilId,
+          assetCode,
+          assetIssuer,
+        );
+        const deployXdr = await buildDeployContractTx(
+          wasmHash,
+          adminAddress,
+          args,
+          assetSalt,
+        );
         const deploySigned = await signTransaction(deployXdr);
         const { contractId } = await submitTx(deploySigned);
-        if (!contractId) throw new Error(`Failed to deploy ${assetCode} channel`);
+        if (!contractId) {
+          throw new Error(`Failed to deploy ${assetCode} channel`);
+        }
         channelId = contractId;
       });
 
@@ -140,7 +170,8 @@ function renderStep(): HTMLElement {
         } catch (err) {
           console.warn("Platform channel registration failed:", err);
           stepEl.className = "deploy-step deploy-step-error";
-          stepEl.textContent = `${assetCode} deployed but platform registration failed`;
+          stepEl.textContent =
+            `${assetCode} deployed but platform registration failed`;
         }
       }
 
