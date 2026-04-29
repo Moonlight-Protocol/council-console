@@ -5,6 +5,7 @@
  * The wallet extension proves key ownership (it controls the private key).
  * We store the connected address in localStorage as the session.
  */
+// deno-lint-ignore-file no-node-globals -- Buffer is provided at runtime by src/shims/buffer.ts via esbuild inject; importing it from "node:buffer" survives the build.ts strip and breaks the browser bundle under CSP.
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/stellar-wallets-kit.mjs";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit/types.mjs";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@creit.tech/stellar-wallets-kit/modules/freighter.module.mjs";
 import "@creit.tech/stellar-wallets-kit/components/modal/stellar-wallets-modal.mjs";
 import { getNetworkPassphrase, STELLAR_NETWORK } from "./config.ts";
-import { Buffer } from "node:buffer";
 
 const STORAGE_KEY = "council_admin_address";
 

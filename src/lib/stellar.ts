@@ -2,13 +2,13 @@
  * Stellar/Soroban helpers for contract deployment and invocation.
  * All transactions are built unsigned and signed via wallet (Freighter).
  */
+// deno-lint-ignore-file no-node-globals -- Buffer is provided at runtime by src/shims/buffer.ts via esbuild inject; importing it from "node:buffer" survives the build.ts strip and breaks the browser bundle under CSP.
 import {
   FRIENDBOT_URL,
   getNetworkPassphrase,
   HORIZON_URL,
   RPC_URL,
 } from "./config.ts";
-import { Buffer } from "node:buffer";
 
 const NETWORK_PASSPHRASE = getNetworkPassphrase();
 
