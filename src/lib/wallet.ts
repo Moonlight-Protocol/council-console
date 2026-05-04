@@ -76,7 +76,7 @@ let masterSeed: Uint8Array | null = null;
  * Must be called once per session before any key derivation.
  */
 export async function initMasterSeed(): Promise<void> {
-  const signature = await signMessage("Moonlight: authorize master key");
+  const signature = await signMessage("Moonlight: Derive server key");
   const normalized = signature.replace(/-/g, "+").replace(/_/g, "/");
   const sigBytes = Uint8Array.from(atob(normalized), (c) => c.charCodeAt(0));
   masterSeed = new Uint8Array(await crypto.subtle.digest("SHA-256", sigBytes));
