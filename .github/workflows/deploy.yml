@@ -7,6 +7,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      STELLAR_NETWORK: "${{ secrets.STELLAR_NETWORK }}"
+      RPC_URL: "${{ secrets.RPC_URL }}"
+      HORIZON_URL: "${{ secrets.HORIZON_URL }}"
+      FRIENDBOT_URL: "${{ secrets.FRIENDBOT_URL }}"
+      PLATFORM_URL: "${{ secrets.PLATFORM_URL }}"
+      POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
+      OTEL_ENDPOINT: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
+      OTEL_AUTH: "${{ secrets.OTEL_COLLECTOR_AUTH }}"
+      ALLOWLIST: '${{ secrets.ALLOWLIST || ''["*"]'' }}'
     steps:
       - uses: actions/checkout@v4
 
@@ -14,22 +24,49 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Validate testnet config inputs
+        run: |
+          set -euo pipefail
+          for var in STELLAR_NETWORK RPC_URL HORIZON_URL FRIENDBOT_URL PLATFORM_URL OTEL_ENDPOINT OTEL_AUTH ALLOWLIST; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Required env var $var is empty"
+              exit 1
+            fi
+          done
+          case "$STELLAR_NETWORK" in
+            testnet|mainnet) ;;
+            *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
+          esac
+          for var in RPC_URL HORIZON_URL FRIENDBOT_URL PLATFORM_URL OTEL_ENDPOINT; do
+            val="${!var}"
+            case "$val" in
+              https://*) ;;
+              *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
+            esac
+          done
+          case "$ALLOWLIST" in
+            \[*\]) ;;
+            *) echo "::error::ALLOWLIST is not a JSON array (got: $ALLOWLIST)"; exit 1 ;;
+          esac
+          case "$OTEL_AUTH" in
+            "Basic "*) ;;
+            *) echo "::error::OTEL_AUTH must start with 'Basic ' (got prefix: ${OTEL_AUTH:0:6})"; exit 1 ;;
+          esac
+
       - name: Generate production config
-        env:
-          ALLOWLIST: ${{ secrets.ALLOWLIST || '["*"]' }}
         run: |
           cat > public/config.js << EOF
           window.__CONSOLE_CONFIG__ = {
             environment: "production",
-            stellarNetwork: "${{ secrets.STELLAR_NETWORK }}",
-            rpcUrl: "${{ secrets.RPC_URL }}",
-            horizonUrl: "${{ secrets.HORIZON_URL }}",
-            friendbotUrl: "${{ secrets.FRIENDBOT_URL }}",
-            platformUrl: "${{ secrets.PLATFORM_URL }}",
-            posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
+            stellarNetwork: "$STELLAR_NETWORK",
+            rpcUrl: "$RPC_URL",
+            horizonUrl: "$HORIZON_URL",
+            friendbotUrl: "$FRIENDBOT_URL",
+            platformUrl: "$PLATFORM_URL",
+            posthogKey: "$POSTHOG_KEY",
             posthogHost: "https://us.i.posthog.com",
-            otelEndpoint: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}",
-            otelAuth: "${{ secrets.OTEL_COLLECTOR_AUTH }}",
+            otelEndpoint: "$OTEL_ENDPOINT",
+            otelAuth: "$OTEL_AUTH",
             allowlist: $ALLOWLIST,
           };
           EOF
@@ -39,8 +76,8 @@ jobs:
 
       - name: Deploy to Tigris (testnet)
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.TIGRIS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.TIGRIS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: "${{ secrets.TIGRIS_ACCESS_KEY_ID }}"
+          AWS_SECRET_ACCESS_KEY: "${{ secrets.TIGRIS_SECRET_ACCESS_KEY }}"
           AWS_REGION: auto
         run: |
           aws s3 sync public/ s3://moonlight-council-console/ \
@@ -52,6 +89,15 @@ jobs:
   deploy-mainnet:
     runs-on: ubuntu-latest
     environment: mainnet
+    env:
+      STELLAR_NETWORK: "${{ secrets.MAINNET_STELLAR_NETWORK }}"
+      RPC_URL: "${{ secrets.MAINNET_RPC_URL }}"
+      HORIZON_URL: "${{ secrets.MAINNET_HORIZON_URL }}"
+      PLATFORM_URL: "${{ secrets.MAINNET_PLATFORM_URL }}"
+      POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
+      OTEL_ENDPOINT: "${{ secrets.MAINNET_OTEL_COLLECTOR_ENDPOINT }}"
+      OTEL_AUTH: "${{ secrets.MAINNET_OTEL_COLLECTOR_AUTH }}"
+      ALLOWLIST: '${{ secrets.MAINNET_ALLOWLIST || ''["*"]'' }}'
     steps:
       - uses: actions/checkout@v4
 
@@ -59,21 +105,48 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Validate mainnet config inputs
+        run: |
+          set -euo pipefail
+          for var in STELLAR_NETWORK RPC_URL HORIZON_URL PLATFORM_URL OTEL_ENDPOINT OTEL_AUTH ALLOWLIST; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Required env var $var is empty"
+              exit 1
+            fi
+          done
+          case "$STELLAR_NETWORK" in
+            testnet|mainnet) ;;
+            *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
+          esac
+          for var in RPC_URL HORIZON_URL PLATFORM_URL OTEL_ENDPOINT; do
+            val="${!var}"
+            case "$val" in
+              https://*) ;;
+              *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
+            esac
+          done
+          case "$ALLOWLIST" in
+            \[*\]) ;;
+            *) echo "::error::ALLOWLIST is not a JSON array (got: $ALLOWLIST)"; exit 1 ;;
+          esac
+          case "$OTEL_AUTH" in
+            "Basic "*) ;;
+            *) echo "::error::OTEL_AUTH must start with 'Basic ' (got prefix: ${OTEL_AUTH:0:6})"; exit 1 ;;
+          esac
+
       - name: Generate mainnet config
-        env:
-          ALLOWLIST: ${{ secrets.MAINNET_ALLOWLIST || '["*"]' }}
         run: |
           cat > public/config.js << EOF
           window.__CONSOLE_CONFIG__ = {
             environment: "production",
-            stellarNetwork: "${{ secrets.MAINNET_STELLAR_NETWORK }}",
-            rpcUrl: "${{ secrets.MAINNET_RPC_URL }}",
-            horizonUrl: "${{ secrets.MAINNET_HORIZON_URL }}",
-            platformUrl: "${{ secrets.MAINNET_PLATFORM_URL }}",
-            posthogKey: "${{ secrets.POSTHOG_PROJECT_TOKEN }}",
+            stellarNetwork: "$STELLAR_NETWORK",
+            rpcUrl: "$RPC_URL",
+            horizonUrl: "$HORIZON_URL",
+            platformUrl: "$PLATFORM_URL",
+            posthogKey: "$POSTHOG_KEY",
             posthogHost: "https://us.i.posthog.com",
-            otelEndpoint: "${{ secrets.MAINNET_OTEL_COLLECTOR_ENDPOINT }}",
-            otelAuth: "${{ secrets.MAINNET_OTEL_COLLECTOR_AUTH }}",
+            otelEndpoint: "$OTEL_ENDPOINT",
+            otelAuth: "$OTEL_AUTH",
             allowlist: $ALLOWLIST,
           };
           EOF
@@ -83,8 +156,8 @@ jobs:
 
       - name: Deploy to Tigris (mainnet)
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.MAINNET_TIGRIS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.MAINNET_TIGRIS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: "${{ secrets.MAINNET_TIGRIS_ACCESS_KEY_ID }}"
+          AWS_SECRET_ACCESS_KEY: "${{ secrets.MAINNET_TIGRIS_SECRET_ACCESS_KEY }}"
           AWS_REGION: auto
         run: |
           aws s3 sync public/ s3://mainnet-council-console/ \
