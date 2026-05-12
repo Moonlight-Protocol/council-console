@@ -1,3 +1,4 @@
+import { renderInviteWaitlist } from "@moonlight/ui/invite-waitlist";
 import {
   clearSession,
   connectWallet,
@@ -13,17 +14,27 @@ import {
   clearPlatformAuth,
   isAuthenticated as isPlatformAuthed,
 } from "../lib/platform.ts";
-import { escapeHtml, truncateAddress } from "../lib/dom.ts";
+import { escapeHtml } from "../lib/dom.ts";
 import { isAllowed, PLATFORM_URL } from "../lib/config.ts";
+
+function inviteWaitlistView(address: string): HTMLElement {
+  return renderInviteWaitlist({
+    address,
+    platformUrl: PLATFORM_URL,
+    logoSrc: "/moonlight.png",
+    onDisconnect: () => {
+      clearSession();
+      clearPlatformAuth();
+      navigate("/login", { force: true });
+    },
+  });
+}
 
 export function loginView(): HTMLElement {
   const existingAddr = getConnectedAddress();
   if (isAuthenticated() && isMasterSeedReady() && isPlatformAuthed()) {
     if (existingAddr && !isAllowed(existingAddr)) {
-      const container = document.createElement("div");
-      container.className = "login-container";
-      renderInviteOnly(container, existingAddr);
-      return container;
+      return inviteWaitlistView(existingAddr);
     }
     navigate("/");
     return document.createElement("div");
@@ -128,7 +139,7 @@ export function loginView(): HTMLElement {
         const addr = getConnectedAddress();
         capture("council_login", { publicKey: addr });
         if (addr && !isAllowed(addr)) {
-          renderInviteOnly(container, addr);
+          container.replaceWith(inviteWaitlistView(addr));
           return;
         }
         navigate("/");
@@ -152,69 +163,4 @@ export function loginView(): HTMLElement {
   );
 
   return container;
-}
-
-function renderInviteOnly(container: HTMLElement, address: string): void {
-  container.innerHTML = `
-    <div class="login-card" style="text-align:center">
-      <img src="/moonlight.png" alt="Moonlight" style="width:80px;margin-bottom:1rem" />
-      <h2>Invite Only</h2>
-      <p style="color:var(--text-muted);margin-bottom:0.5rem">This app is currently invite-only.</p>
-      <p class="mono" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.5rem">${
-    escapeHtml(truncateAddress(address))
-  }</p>
-
-      <p style="font-size:0.85rem;margin-bottom:0.5rem">Leave your email to join the waitlist:</p>
-      <input id="waitlist-email" type="email" placeholder="your@email.com" style="width:100%;margin-bottom:0.75rem" />
-      <button id="waitlist-btn" class="btn-primary btn-wide">Join Waitlist</button>
-      <p id="waitlist-status" class="hint-text" hidden></p>
-      <p id="waitlist-error" class="error-text" hidden></p>
-
-      <button id="disconnect-btn" class="btn-link" style="margin-top:1rem;display:block;text-align:center;width:100%;color:var(--text-muted)">Disconnect</button>
-    </div>
-  `;
-
-  container.querySelector("#waitlist-btn")?.addEventListener(
-    "click",
-    async () => {
-      const emailInput = container.querySelector(
-        "#waitlist-email",
-      ) as HTMLInputElement;
-      const statusEl = container.querySelector(
-        "#waitlist-status",
-      ) as HTMLParagraphElement;
-      const errorEl = container.querySelector(
-        "#waitlist-error",
-      ) as HTMLParagraphElement;
-      const btn = container.querySelector("#waitlist-btn") as HTMLButtonElement;
-      const email = emailInput.value.trim();
-      if (!email) return;
-
-      btn.disabled = true;
-      statusEl.hidden = true;
-      errorEl.hidden = true;
-
-      try {
-        const res = await fetch(`${PLATFORM_URL}/api/v1/waitlist`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, walletPublicKey: address }),
-        });
-        if (!res.ok) throw new Error(`${res.status}`);
-        statusEl.textContent = "You're on the list!";
-        statusEl.hidden = false;
-        btn.textContent = "Submitted";
-      } catch {
-        errorEl.textContent = "Could not submit. Please try again.";
-        errorEl.hidden = false;
-        btn.disabled = false;
-      }
-    },
-  );
-
-  container.querySelector("#disconnect-btn")?.addEventListener("click", () => {
-    clearSession();
-    clearPlatformAuth();
-    navigate("/login", { force: true });
-  });
 }
