@@ -1,0 +1,316 @@
+/*
+ * App-specific styles for council-console.
+ *
+ * Tokens + base-styles + nav + stepper now come from @moonlight/ui at the
+ * pinned tag — fetched and concatenated into public/styles.css by src/build.ts.
+ * This file contains ONLY selectors the lib does not ship.
+ */
+
+/* Tables — used by council list / detail / providers views */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th.text-right, td.text-right {
+  text-align: right !important;
+}
+th.text-center, td.text-center {
+  text-align: center !important;
+}
+th.text-left, td.text-left {
+  text-align: left !important;
+}
+
+th {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* File input variant — the lib's .form-group input rule uses monospace; file
+   inputs need sans-serif and tighter padding. */
+.form-group input[type="file"] {
+  font-family: var(--font-sans);
+  padding: 0.5rem;
+}
+
+/* Deploy steps */
+.deploy-step {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  border-left: 3px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.deploy-step-active {
+  color: var(--text);
+  border-left-color: var(--primary);
+}
+
+.deploy-step-done {
+  color: var(--active);
+  border-left-color: var(--active);
+}
+
+.deploy-step-done::before {
+  content: "\2713 ";
+}
+
+.deploy-step-error {
+  color: var(--inactive);
+  border-left-color: var(--inactive);
+}
+
+.deploy-step-error::before {
+  content: "\2717 ";
+}
+
+/* Jurisdiction picker */
+.jurisdiction-picker {
+  position: relative;
+}
+.jurisdiction-picker .jurisdiction-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: none;
+}
+.jurisdiction-picker.open .jurisdiction-dropdown {
+  display: block;
+}
+
+.jurisdiction-list {
+  padding: 0.25rem 0;
+}
+
+.jurisdiction-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.jurisdiction-option:hover {
+  background: var(--surface);
+}
+.jurisdiction-option.selected {
+  background: var(--surface);
+  color: var(--active);
+}
+
+.jurisdiction-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.jurisdiction-tag {
+  display: inline-flex;
+  align-items: center;
+  background: var(--border);
+  color: var(--text);
+  padding: 0.15rem 0.4rem 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  gap: 0.25rem;
+}
+
+/* Asset badges */
+.asset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  margin: 0.15rem;
+}
+
+.asset-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.asset-remove:hover {
+  color: var(--inactive);
+}
+
+/* Inline edit */
+.inline-edit {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.inline-edit[data-field="description"] {
+  display: block;
+  width: 100%;
+}
+
+.inline-edit .edit-icon {
+  opacity: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: opacity 0.1s;
+}
+
+.inline-edit:hover .edit-icon {
+  opacity: 1;
+}
+
+.inline-edit-input {
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 0.15rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: inherit;
+}
+
+.inline-edit-input.edit-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.inline-edit-input.edit-email {
+  width: 250px;
+}
+
+.inline-edit-input.edit-description {
+  width: 100%;
+}
+
+/* List items */
+.list-item {
+  padding: 0.85rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 23, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+}
+
+/* Jurisdiction map */
+.jurisdiction-map {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.jurisdiction-map svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Page header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Council detail header */
+.council-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.council-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.council-header .header-icons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Icon button variant for "Remove from console" — lib ships .icon-btn,
+   this is the hover-color override for the destructive variant. */
+.icon-btn[title="Remove from console"]:hover {
+  color: var(--inactive);
+}
+
+/* Balance warning */
+.balance-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--pending);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
