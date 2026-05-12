@@ -160,7 +160,7 @@ function renderStep(): HTMLElement {
       // Register with platform
       if (isPlatformConfigured() && isPlatformAuthed()) {
         try {
-          await registerChannel({
+          await registerChannel(councilId, {
             channelContractId: channelId,
             assetCode,
             assetContractId,

@@ -254,12 +254,13 @@ async function renderContent(): Promise<HTMLElement> {
 
       input.addEventListener("blur", save);
       input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !isTextarea) {
-          e.preventDefault();
+        const ke = e as KeyboardEvent;
+        if (ke.key === "Enter" && !isTextarea) {
+          ke.preventDefault();
           input.removeEventListener("blur", save);
           save();
         }
-        if (e.key === "Escape") {
+        if (ke.key === "Escape") {
           input.removeEventListener("blur", save);
           cancel();
         }

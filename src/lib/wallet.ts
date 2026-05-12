@@ -7,7 +7,6 @@
  *
  * Uses stellar-wallets-kit v2 (static API).
  */
-// deno-lint-ignore-file no-node-globals -- Buffer is provided at runtime by src/shims/buffer.ts via esbuild inject; importing it from "node:buffer" survives the build.ts strip and breaks the browser bundle under CSP.
 import { StellarWalletsKit } from "@creit-tech/stellar-wallets-kit/sdk";
 import { Networks } from "@creit-tech/stellar-wallets-kit/types";
 import { FreighterModule } from "@creit-tech/stellar-wallets-kit/modules/freighter";
@@ -158,10 +157,8 @@ export async function deriveOpExKeypair(
   const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
 
   const { Keypair } = await import("stellar-sdk");
-  // stellar-sdk's fromRawEd25519Seed expects a Buffer, but we have a Uint8Array.
-  // The double cast is needed because the types are incompatible at compile time,
-  // even though Uint8Array is accepted at runtime.
-  const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
+  const { Buffer } = await import("buffer");
+  const keypair = Keypair.fromRawEd25519Seed(Buffer.from(derived));
   return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
 }
 
@@ -187,10 +184,8 @@ export async function deriveCouncilKeypair(
   const derived = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
 
   const { Keypair } = await import("stellar-sdk");
-  // stellar-sdk's fromRawEd25519Seed expects a Buffer, but we have a Uint8Array.
-  // The double cast is needed because the types are incompatible at compile time,
-  // even though Uint8Array is accepted at runtime.
-  const keypair = Keypair.fromRawEd25519Seed(derived as unknown as Buffer);
+  const { Buffer } = await import("buffer");
+  const keypair = Keypair.fromRawEd25519Seed(Buffer.from(derived));
   return { publicKey: keypair.publicKey(), secretKey: keypair.secret() };
 }
 
