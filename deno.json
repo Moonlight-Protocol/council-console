@@ -5,7 +5,8 @@
     "dev": "deno run --allow-all --watch src/server.ts",
     "build": "deno run --allow-all src/build.ts",
     "serve": "deno run --allow-all src/server.ts",
-    "test": "deno test --allow-all tests/"
+    "test": "deno test --allow-all tests/",
+    "check": "deno check src/server.ts src/build.ts src/app.ts src/lib/*.ts src/views/*.ts src/components/*.ts"
   },
   "compilerOptions": {
     "strict": true,
