@@ -47,6 +47,11 @@ function renderStep(): HTMLElement {
 
       statusEl.textContent = "Pushing council info...";
 
+      const councilId = sessionStorage.getItem("onboarding_council_id");
+      if (!councilId) {
+        throw new Error("Council ID missing — please restart onboarding");
+      }
+
       const metadata = getFormDraft("metadata") as {
         name?: string;
         description?: string;
@@ -56,6 +61,7 @@ function renderStep(): HTMLElement {
 
       if (metadata?.name) {
         await pushMetadata({
+          councilId,
           name: metadata.name,
           description: metadata.description || undefined,
           contactEmail: metadata.contactEmail || undefined,
@@ -65,13 +71,12 @@ function renderStep(): HTMLElement {
       if (metadata?.jurisdictions) {
         for (const code of metadata.jurisdictions) {
           const entry = COUNTRY_CODES.find((c) => c.code === code);
-          await addJurisdiction(code, entry?.label);
+          await addJurisdiction(councilId, code, entry?.label);
         }
       }
 
       // Read the privacy channel ID from create progress (localStorage),
       // since we no longer store councils in localStorage via store.ts.
-      const councilId = sessionStorage.getItem("onboarding_council_id");
       let privacyChannelId: string | undefined;
       try {
         const progress = JSON.parse(
@@ -80,10 +85,10 @@ function renderStep(): HTMLElement {
         privacyChannelId = progress.privacyChannelId;
       } catch { /* no progress */ }
 
-      if (privacyChannelId && councilId) {
+      if (privacyChannelId) {
         const { getAssetContractId } = await import("../../lib/stellar.ts");
         const assetContractId = await getAssetContractId("XLM");
-        await registerChannel({
+        await registerChannel(councilId, {
           channelContractId: privacyChannelId,
           assetCode: "XLM",
           assetContractId,

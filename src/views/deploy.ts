@@ -273,6 +273,7 @@ function renderContent(): HTMLElement {
         buildDeployContractTx,
         submitTx,
         ensureSacDeployed,
+        getAssetContractId,
         sdk: getSdk,
       } = await import("../lib/stellar.ts");
       const { nativeToScVal, Address } = await getSdk();
@@ -386,19 +387,20 @@ function renderContent(): HTMLElement {
           await withSpan("deploy.platform_push", traceId, async () => {
             await authenticate();
             await pushMetadata({
+              councilId: channelAuthId,
               name: label || "Unnamed Council",
               description: description || undefined,
               contactEmail: contactEmail || undefined,
             });
             for (const code of jurisdictions) {
               const entry = COUNTRY_CODES.find((c) => c.code === code);
-              await addJurisdiction(code, entry?.label);
+              await addJurisdiction(channelAuthId, code, entry?.label);
             }
             const assetContractId = await getAssetContractId(
               assetCode,
               assetIssuer || undefined,
             );
-            await registerChannel({
+            await registerChannel(channelAuthId, {
               channelContractId: privacyChannelId,
               assetCode,
               assetContractId,

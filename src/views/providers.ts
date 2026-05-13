@@ -4,6 +4,12 @@ import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
 import { navigate } from "../lib/router.ts";
+import {
+  getCouncil,
+  loadCouncils,
+  type ManagedCouncil,
+  updateCouncil,
+} from "../lib/store.ts";
 
 async function isValidStellarAddress(address: string): Promise<boolean> {
   const stellar = await import("../lib/stellar.ts");
@@ -17,9 +23,9 @@ function renderContent(): HTMLElement {
   const params = new URLSearchParams(
     globalThis.location.hash.split("?")[1] || "",
   );
-  const councilId = params.get("council");
+  const councilIdParam = params.get("council");
 
-  if (!councilId) {
+  if (!councilIdParam) {
     const councils = loadCouncils();
     if (councils.length === 0) {
       el.innerHTML = `
@@ -54,11 +60,13 @@ function renderContent(): HTMLElement {
     return el;
   }
 
-  const council = getCouncil(councilId);
-  if (!council) {
+  const councilId: string = councilIdParam;
+  const councilMaybe = getCouncil(councilId);
+  if (!councilMaybe) {
     renderError(el, "Council Not Found", `No local record for ${councilId}`);
     return el;
   }
+  const council: ManagedCouncil = councilMaybe;
 
   const providerRows = council.providers.length > 0
     ? council.providers.map((p) => `
