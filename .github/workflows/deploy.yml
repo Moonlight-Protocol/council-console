@@ -14,8 +14,8 @@ jobs:
       FRIENDBOT_URL: "${{ secrets.FRIENDBOT_URL }}"
       PLATFORM_URL: "${{ secrets.PLATFORM_URL }}"
       POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
-      OTEL_ENDPOINT: "${{ secrets.OTEL_COLLECTOR_ENDPOINT }}"
-      OTEL_AUTH: "${{ secrets.OTEL_COLLECTOR_AUTH }}"
+      OTEL_ENDPOINT: "${{ secrets.OTEL_ENDPOINT }}"
+      OTEL_AUTH: "${{ secrets.OTEL_AUTH }}"
       ALLOWLIST: '${{ secrets.ALLOWLIST || ''["*"]'' }}'
     steps:
       - uses: actions/checkout@v4
@@ -95,8 +95,8 @@ jobs:
       HORIZON_URL: "${{ secrets.MAINNET_HORIZON_URL }}"
       PLATFORM_URL: "${{ secrets.MAINNET_PLATFORM_URL }}"
       POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
-      OTEL_ENDPOINT: "${{ secrets.MAINNET_OTEL_COLLECTOR_ENDPOINT }}"
-      OTEL_AUTH: "${{ secrets.MAINNET_OTEL_COLLECTOR_AUTH }}"
+      OTEL_ENDPOINT: "${{ secrets.MAINNET_OTEL_ENDPOINT }}"
+      OTEL_AUTH: "${{ secrets.MAINNET_OTEL_AUTH }}"
       ALLOWLIST: '${{ secrets.MAINNET_ALLOWLIST || ''["*"]'' }}'
     steps:
       - uses: actions/checkout@v4
