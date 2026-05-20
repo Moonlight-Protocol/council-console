@@ -32,12 +32,13 @@ const HEALTH_OUT = resolve(PROJECT_ROOT, "public/health.json");
 // text/plain with nosniff so browsers refuse @import of these URLs; we
 // fetch + concatenate at build time and write the result to public/styles.css.
 // Do not change without bumping the consumer-side deps explicitly.
-const UI_LIB_TAG = "v0.3.1";
+const UI_LIB_TAG = "v0.3.2";
 const UI_LIB_CSS_FILES = [
   "tokens/tokens.css",
   "base-styles/base-styles.css",
   "nav/nav.css",
   "stepper/stepper.css",
+  "world-map/world-map.css",
 ];
 const APP_STYLES_SRC = resolve(SRC_DIR, "app-styles.css");
 const STYLES_OUT = resolve(PROJECT_ROOT, "public/styles.css");
