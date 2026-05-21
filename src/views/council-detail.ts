@@ -16,7 +16,7 @@ import {
   registerChannel,
 } from "../lib/platform.ts";
 import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
-import { renderJurisdictionMap } from "../lib/world-map.ts";
+import { getCountryName, renderWorldMap } from "@moonlight/ui/world-map";
 import { fetchCouncilState } from "../lib/onboarding.ts";
 
 async function renderContent(): Promise<HTMLElement> {
@@ -111,21 +111,11 @@ async function renderContent(): Promise<HTMLElement> {
 
   // --- Jurisdiction map (always shown, clickable) ---
   const mapContainer = el.querySelector("#jurisdiction-map") as HTMLDivElement;
-  renderJurisdictionMap(jurisdictions).then((svg) => {
-    if (!svg) return;
-    mapContainer.innerHTML = svg;
-
-    // Click handler for all countries
-    mapContainer.addEventListener("click", async (e) => {
-      const target = (e.target as Element).closest("[data-country]") as
-        | HTMLElement
-        | null;
-      if (!target) return;
-      const code = target.dataset.country!;
-      const { getCountryName } = await import("../lib/world-map.ts");
+  renderWorldMap({
+    selected: jurisdictions,
+    onSelect: async (code) => {
       const name = getCountryName(code);
       const isSelected = jurisdictions.includes(code);
-
       if (isSelected) {
         if (!confirm(`Remove ${name} (${code}) from jurisdictions?`)) return;
         if (isPlatformAuthed()) {
@@ -153,7 +143,11 @@ async function renderContent(): Promise<HTMLElement> {
           }
         }
       }
-    });
+    },
+  }).then((handle) => {
+    mapContainer.appendChild(handle.element);
+  }).catch((err) => {
+    console.warn("Jurisdiction map failed to load:", err);
   });
 
   // --- Inline editing (pushes directly to platform) ---
