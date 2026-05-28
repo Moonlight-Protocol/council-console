@@ -2,12 +2,14 @@ import { IS_PRODUCTION, POSTHOG_HOST, POSTHOG_KEY } from "./config.ts";
 
 interface Analytics {
   capture(event: string, properties?: Record<string, unknown>): void;
+  captureException(error: unknown, properties?: Record<string, unknown>): void;
   identify(distinctId: string, properties?: Record<string, unknown>): void;
   reset(): void;
 }
 
 const noop: Analytics = {
   capture() {},
+  captureException() {},
   identify() {},
   reset() {},
 };
@@ -29,9 +31,12 @@ export function initAnalytics(): void {
       posthog.init(POSTHOG_KEY, {
         api_host: POSTHOG_HOST,
         person_profiles: "identified_only",
+        capture_exceptions: true,
       });
       analytics = {
         capture: (event, properties) => posthog.capture(event, properties),
+        captureException: (error, properties) =>
+          posthog.captureException(error, properties),
         identify: (distinctId, properties) =>
           posthog.identify(distinctId, properties),
         reset: () => posthog.reset(),
@@ -46,6 +51,13 @@ export function capture(
   properties?: Record<string, unknown>,
 ): void {
   analytics.capture(event, properties);
+}
+
+export function captureException(
+  error: unknown,
+  properties?: Record<string, unknown>,
+): void {
+  analytics.captureException(error, properties);
 }
 
 export function identify(

@@ -74,6 +74,15 @@ jobs:
       - name: Build production bundle
         run: deno task build -- --production
 
+      - name: Upload source maps to PostHog
+        env:
+          POSTHOG_CLI_API_KEY: "${{ secrets.POSTHOG_CLI_API_KEY }}"
+          POSTHOG_CLI_PROJECT_ID: "345524"
+          POSTHOG_CLI_HOST: "https://us.posthog.com"
+        run: |
+          npx --yes @posthog/cli sourcemap inject --directory public/
+          npx --yes @posthog/cli sourcemap upload --directory public/
+
       - name: Deploy to Tigris (testnet)
         env:
           AWS_ACCESS_KEY_ID: "${{ secrets.TIGRIS_ACCESS_KEY_ID }}"
@@ -84,6 +93,7 @@ jobs:
             --endpoint-url https://fly.storage.tigris.dev \
             --acl public-read \
             --delete \
+            --exclude "*.map" \
             --no-progress
 
   deploy-mainnet:
@@ -154,6 +164,15 @@ jobs:
       - name: Build production bundle
         run: deno task build -- --production
 
+      - name: Upload source maps to PostHog
+        env:
+          POSTHOG_CLI_API_KEY: "${{ secrets.POSTHOG_CLI_API_KEY }}"
+          POSTHOG_CLI_PROJECT_ID: "345524"
+          POSTHOG_CLI_HOST: "https://us.posthog.com"
+        run: |
+          npx --yes @posthog/cli sourcemap inject --directory public/
+          npx --yes @posthog/cli sourcemap upload --directory public/
+
       - name: Deploy to Tigris (mainnet)
         env:
           AWS_ACCESS_KEY_ID: "${{ secrets.MAINNET_TIGRIS_ACCESS_KEY_ID }}"
@@ -164,4 +183,5 @@ jobs:
             --endpoint-url https://fly.storage.tigris.dev \
             --acl public-read \
             --delete \
+            --exclude "*.map" \
             --no-progress
