@@ -8,6 +8,7 @@ import {
   HORIZON_URL,
   RPC_URL,
 } from "./config.ts";
+import { getAuthToken } from "./platform.ts";
 
 const NETWORK_PASSPHRASE = getNetworkPassphrase();
 
@@ -55,7 +56,10 @@ interface StellarSdkSubset {
   nativeToScVal(value: unknown, opts?: { type: string }): unknown;
   xdr: XdrNamespace;
   rpc: {
-    Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
+    Server: new (
+      url: string,
+      opts?: { allowHttp?: boolean; headers?: Record<string, string> },
+    ) => RpcServer;
     assembleTransaction(
       tx: Transaction,
       sim: SimulationResult,
@@ -162,7 +166,15 @@ export async function rpc(): Promise<NonNullable<typeof RpcModule>> {
 
 export async function getRpcServer(): Promise<RpcServer> {
   const { Server } = await rpc();
-  return new Server(RPC_URL, { allowHttp: RPC_URL.startsWith("http://") });
+  // RPC_URL points at council-platform's `/api/v1/rpc` passthrough proxy
+  // (set via console config), not the raw RPC. The proxy is JWT-gated, so the
+  // SDK Server sends the dashboard JWT on every RPC call; the RPC-Pro token
+  // stays server-side and never enters the bundle.
+  const token = getAuthToken();
+  return new Server(RPC_URL, {
+    allowHttp: RPC_URL.startsWith("http://"),
+    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  });
 }
 
 export async function fundAccount(publicKey: string): Promise<void> {

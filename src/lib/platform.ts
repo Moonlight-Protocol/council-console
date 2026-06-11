@@ -354,3 +354,12 @@ export function clearPlatformAuth(): void {
   authToken = null;
   localStorage.removeItem(TOKEN_KEY);
 }
+
+/**
+ * The current dashboard JWT, or null if not signed in. Used to authorize the
+ * Soroban RPC proxy (the SDK `Server` sends it as `Authorization: Bearer`) so
+ * the RPC-Pro token can stay server-side on council-platform.
+ */
+export function getAuthToken(): string | null {
+  return authToken;
+}
