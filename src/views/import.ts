@@ -2,6 +2,7 @@ import { page } from "../components/page.ts";
 import { addCouncil, getCouncil } from "../lib/store.ts";
 import { navigate } from "../lib/router.ts";
 import { capture } from "../lib/analytics.ts";
+import { friendlyError } from "../lib/dom.ts";
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -111,9 +112,7 @@ function renderContent(): HTMLElement {
 
       setTimeout(() => navigate("/"), 1000);
     } catch (error) {
-      errorEl.textContent = error instanceof Error
-        ? error.message
-        : "Import failed";
+      errorEl.textContent = friendlyError(error);
       errorEl.hidden = false;
       statusEl.hidden = true;
     } finally {

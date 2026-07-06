@@ -2,7 +2,7 @@
  * Minimal hash-based router for SPA navigation.
  * Routes are defined as hash paths: #/login, #/deploy, #/providers, etc.
  */
-import { renderError } from "./dom.ts";
+import { friendlyError, renderError } from "./dom.ts";
 
 type RouteHandler = () => HTMLElement | Promise<HTMLElement>;
 
@@ -50,7 +50,7 @@ async function render(): Promise<void> {
     renderError(
       container,
       "Something went wrong",
-      error instanceof Error ? error.message : String(error),
+      friendlyError(error),
     );
     app.appendChild(container);
   }

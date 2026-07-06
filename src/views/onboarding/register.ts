@@ -2,6 +2,7 @@ import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
 import { clearFormDraft, getFormDraft } from "../../lib/onboarding.ts";
 import { COUNTRY_CODES } from "../../lib/jurisdictions.ts";
+import { friendlyError } from "../../lib/dom.ts";
 import {
   addJurisdiction,
   authenticate,
@@ -99,7 +100,7 @@ function renderStep(): HTMLElement {
       clearFormDraft("metadata");
       navigate("/create-council/invite");
     } catch (err) {
-      errorEl.textContent = err instanceof Error ? err.message : String(err);
+      errorEl.textContent = friendlyError(err);
       errorEl.hidden = false;
       registerBtn.disabled = false;
       registerBtn.textContent = "Retry";

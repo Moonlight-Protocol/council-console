@@ -1,6 +1,6 @@
 import { page } from "../components/page.ts";
 import { PLATFORM_URL } from "../lib/config.ts";
-import { escapeHtml } from "../lib/dom.ts";
+import { escapeHtml, friendlyError } from "../lib/dom.ts";
 import { deleteCouncil, listCouncils } from "../lib/platform.ts";
 import { navigate } from "../lib/router.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
@@ -263,6 +263,7 @@ async function renderContent(): Promise<HTMLElement> {
         globalThis.location.reload();
       } catch (err) {
         console.error("Failed to delete council:", err);
+        alert(friendlyError(err));
       }
     });
   });

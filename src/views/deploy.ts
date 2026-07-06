@@ -2,7 +2,7 @@ import { page } from "../components/page.ts";
 import { addCouncil } from "../lib/store.ts";
 import { navigate } from "../lib/router.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
-import { escapeHtml } from "../lib/dom.ts";
+import { escapeHtml, friendlyError } from "../lib/dom.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
 import { COUNTRY_CODES } from "../lib/jurisdictions.ts";
@@ -438,9 +438,7 @@ function renderContent(): HTMLElement {
       capture("council_deploy_failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-      errorEl.textContent = error instanceof Error
-        ? error.message
-        : String(error);
+      errorEl.textContent = friendlyError(error);
       errorEl.hidden = false;
       btn.disabled = false;
     }

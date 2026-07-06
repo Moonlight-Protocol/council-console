@@ -1,7 +1,7 @@
 import { page } from "../components/page.ts";
 import { navigate } from "../lib/router.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
-import { escapeHtml } from "../lib/dom.ts";
+import { escapeHtml, friendlyError } from "../lib/dom.ts";
 import {
   addJurisdiction,
   isAuthenticated as isPlatformAuthed,
@@ -449,7 +449,7 @@ function showImportForm(contractId: string) {
       close();
       navigate("/");
     } catch (err) {
-      errorEl.textContent = err instanceof Error ? err.message : String(err);
+      errorEl.textContent = friendlyError(err);
       errorEl.hidden = false;
       submitBtn.disabled = false;
       submitBtn.textContent = "Recover";
