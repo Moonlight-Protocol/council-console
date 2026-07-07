@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       stellar:
-        # Pinned off :latest — the v640 image (2026-06-15) has a quickstart
-        # regression that deterministically breaks contract deploy (deploy_test:
-        # "Simulation failed: HostError InternalError"). Mirrors local-dev#120.
-        image: stellar/quickstart:v639-b1103.1-latest
+        # Pinned to the validated build (never floating :latest). Supersedes the
+        # earlier v639 pin: v640+ (core v27) works once PROTOCOL_VERSION below
+        # forces the local network's protocol to match this image's core.
+        image: stellar/quickstart:v642-b1163.1-latest
         options: >-
           --health-cmd "curl -sf http://localhost:8000/soroban/rpc -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}' | grep -q healthy"
           --health-interval 10s
@@ -64,6 +64,12 @@ jobs:
         env:
           NETWORK: local
           LIMITS: unlimited
+          # WORKAROUND: force protocol 27 to match this image's stellar-core v27.
+          # The quickstart image defaults --local to protocol 25, which fails
+          # contract upload with HostError(Context, InternalError). Service
+          # containers take no CMD args, so the protocol is forced via this env
+          # var (read by the image's start script). Remove when a fixed image ships.
+          PROTOCOL_VERSION: "27"
     steps:
       - uses: actions/checkout@v4
 
