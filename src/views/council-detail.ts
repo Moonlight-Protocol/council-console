@@ -127,6 +127,8 @@ async function renderContent(): Promise<HTMLElement> {
             });
           } catch (err) {
             console.warn("Failed to remove jurisdiction:", err);
+            assetErrorEl.textContent = friendlyError(err);
+            assetErrorEl.hidden = false;
           }
         }
       } else {
@@ -140,6 +142,8 @@ async function renderContent(): Promise<HTMLElement> {
             });
           } catch (err) {
             console.warn("Failed to add jurisdiction:", err);
+            assetErrorEl.textContent = friendlyError(err);
+            assetErrorEl.hidden = false;
           }
         }
       }
@@ -231,10 +235,10 @@ async function renderContent(): Promise<HTMLElement> {
               setTimeout(() => {
                 displayEl.style.color = "";
               }, 1000);
-            }).catch(() => {
+            }).catch((error) => {
               displayEl.style.color = "var(--inactive)";
               displayEl.textContent = (displayEl.textContent || "") +
-                " (save failed)";
+                ` (${friendlyError(error)})`;
             });
           }
         }
@@ -334,6 +338,8 @@ async function renderContent(): Promise<HTMLElement> {
         });
       } catch (err) {
         console.warn("Failed to disable asset:", err);
+        assetErrorEl.textContent = friendlyError(err);
+        assetErrorEl.hidden = false;
       }
     });
   });
@@ -543,6 +549,8 @@ async function renderContent(): Promise<HTMLElement> {
         popupApprove.disabled = false;
         popupReject.disabled = false;
         popupLocked = false;
+        assetErrorEl.textContent = friendlyError(err);
+        assetErrorEl.hidden = false;
       }
     });
 
@@ -565,6 +573,8 @@ async function renderContent(): Promise<HTMLElement> {
         popupReject.disabled = false;
         popupApprove.disabled = false;
         popupLocked = false;
+        assetErrorEl.textContent = friendlyError(err);
+        assetErrorEl.hidden = false;
       }
     });
   }

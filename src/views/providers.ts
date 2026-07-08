@@ -1,5 +1,10 @@
 import { page } from "../components/page.ts";
-import { escapeHtml, renderError, truncateAddress } from "../lib/dom.ts";
+import {
+  escapeHtml,
+  friendlyError,
+  renderError,
+  truncateAddress,
+} from "../lib/dom.ts";
 import { getConnectedAddress } from "../lib/wallet.ts";
 import { capture } from "../lib/analytics.ts";
 import { startTrace, withSpan } from "../lib/tracer.ts";
@@ -205,9 +210,7 @@ function renderContent(): HTMLElement {
       capture(`council_${action}_failed`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      errorEl.textContent = error instanceof Error
-        ? error.message
-        : String(error);
+      errorEl.textContent = friendlyError(error);
       errorEl.hidden = false;
       statusEl.hidden = true;
     }

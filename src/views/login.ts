@@ -14,7 +14,7 @@ import {
   clearPlatformAuth,
   isAuthenticated as isPlatformAuthed,
 } from "../lib/platform.ts";
-import { escapeHtml } from "../lib/dom.ts";
+import { escapeHtml, friendlyError } from "../lib/dom.ts";
 import { isAllowed, PLATFORM_URL } from "../lib/config.ts";
 
 function inviteWaitlistView(address: string): HTMLElement {
@@ -111,9 +111,7 @@ export function loginView(): HTMLElement {
 
         capture("council_wallet_connected", { publicKey });
       } catch (error) {
-        errorEl.textContent = error instanceof Error
-          ? error.message
-          : "Failed to connect wallet";
+        errorEl.textContent = friendlyError(error);
         errorEl.hidden = false;
         btn.disabled = false;
       }
@@ -145,17 +143,7 @@ export function loginView(): HTMLElement {
         }
         navigate("/");
       } catch (error) {
-        let msg: string;
-        if (error instanceof Error) {
-          msg = error.message;
-        } else if (
-          typeof error === "object" && error !== null && "message" in error
-        ) {
-          msg = String((error as { message: unknown }).message);
-        } else {
-          msg = error instanceof Error ? error.message : String(error);
-        }
-        errorEl.textContent = msg;
+        errorEl.textContent = friendlyError(error);
         errorEl.hidden = false;
         btn.textContent = originalText;
         btn.disabled = false;

@@ -1,6 +1,7 @@
 import { onboardingPage } from "./layout.ts";
 import { navigate } from "../../lib/router.ts";
 import { deriveOpExKeypair, getConnectedAddress } from "../../lib/wallet.ts";
+import { friendlyError } from "../../lib/dom.ts";
 
 function renderStep(): HTMLElement {
   const el = document.createElement("div");
@@ -104,9 +105,7 @@ function renderStep(): HTMLElement {
       } catch (err) {
         loadingEl.hidden = true;
         errorEl.hidden = false;
-        errorEl.textContent = err instanceof Error
-          ? err.message
-          : "Failed to derive treasury account";
+        errorEl.textContent = friendlyError(err);
       }
     })();
   }
@@ -205,9 +204,7 @@ function renderStep(): HTMLElement {
       }
       navigate("/create-council/assets");
     } catch (err) {
-      errorEl.textContent = err instanceof Error
-        ? err.message
-        : "Failed to save treasury";
+      errorEl.textContent = friendlyError(err);
       errorEl.hidden = false;
       nextBtn.disabled = false;
       nextBtn.textContent = "Next";

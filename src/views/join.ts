@@ -4,6 +4,7 @@
  */
 import { PLATFORM_URL } from "../lib/config.ts";
 import { submitJoinRequest } from "../lib/platform.ts";
+import { friendlyError } from "../lib/dom.ts";
 
 function renderContent(): HTMLElement {
   const el = document.createElement("div");
@@ -94,7 +95,7 @@ function renderContent(): HTMLElement {
       submitBtn.hidden = true;
       successEl.hidden = false;
     } catch (err) {
-      errorEl.textContent = err instanceof Error ? err.message : String(err);
+      errorEl.textContent = friendlyError(err);
       errorEl.hidden = false;
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit Request";

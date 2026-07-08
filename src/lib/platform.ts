@@ -5,6 +5,9 @@
 import { PLATFORM_URL } from "./config.ts";
 import { getConnectedAddress, signMessage } from "./wallet.ts";
 import { currentTraceparent } from "./tracer.ts";
+import { StructuredError, throwFromErrorResponse } from "./platform-error.ts";
+
+export { StructuredError };
 
 function withTraceparent(
   headers: Record<string, string>,
@@ -39,7 +42,7 @@ export async function authenticate(): Promise<string> {
     },
   );
   if (!challengeRes.ok) {
-    throw new Error(`Failed to get auth challenge: ${challengeRes.status}`);
+    await throwFromErrorResponse(challengeRes, "Failed to get auth challenge");
   }
   const { data: { nonce } } = await challengeRes.json();
 
@@ -53,7 +56,7 @@ export async function authenticate(): Promise<string> {
     body: JSON.stringify({ nonce, signature, publicKey }),
   });
   if (!verifyRes.ok) {
-    throw new Error("Platform authentication failed");
+    await throwFromErrorResponse(verifyRes, "Platform authentication failed");
   }
   const { data: { token } } = await verifyRes.json();
 
@@ -105,7 +108,7 @@ export async function pushMetadata(data: {
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    throw new Error(`Failed to push metadata: ${res.status}`);
+    await throwFromErrorResponse(res, "Failed to push metadata");
   }
 }
 
@@ -122,7 +125,7 @@ export async function listCouncils(): Promise<
   >
 > {
   const res = await platformFetch("/api/v1/council/list");
-  if (!res.ok) throw new Error("Failed to list councils");
+  if (!res.ok) await throwFromErrorResponse(res, "Failed to list councils");
   const { data } = await res.json();
   return data;
 }
@@ -141,7 +144,10 @@ export async function addJurisdiction(
     },
   );
   if (!res.ok && res.status !== 409) {
-    throw new Error(`Failed to add jurisdiction ${countryCode}: ${res.status}`);
+    await throwFromErrorResponse(
+      res,
+      `Failed to add jurisdiction ${countryCode}`,
+    );
   }
 }
 
@@ -158,7 +164,9 @@ export async function removeJurisdiction(
       method: "DELETE",
     },
   );
-  if (!res.ok) throw new Error(`Failed to remove jurisdiction: ${res.status}`);
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to remove jurisdiction");
+  }
 }
 
 /** Register a channel with a council. Ignores 409 (already exists). */
@@ -177,7 +185,7 @@ export async function registerChannel(councilId: string, data: {
     },
   );
   if (!res.ok && res.status !== 409) {
-    throw new Error(`Failed to register channel: ${res.status}`);
+    await throwFromErrorResponse(res, "Failed to register channel");
   }
 }
 
@@ -200,7 +208,7 @@ export async function deleteCouncil(councilId: string): Promise<void> {
     `/api/v1/council/metadata?councilId=${encodeURIComponent(councilId)}`,
     { method: "DELETE" },
   );
-  if (!res.ok) throw new Error("Failed to delete council");
+  if (!res.ok) await throwFromErrorResponse(res, "Failed to delete council");
 }
 
 // --- Channel API ---
@@ -219,7 +227,7 @@ export async function disableChannel(id: string): Promise<void> {
     `/api/v1/council/channels/${encodeURIComponent(id)}`,
     { method: "DELETE" },
   );
-  if (!res.ok) throw new Error("Failed to disable channel");
+  if (!res.ok) await throwFromErrorResponse(res, "Failed to disable channel");
 }
 
 /** Re-enable a disabled channel. */
@@ -228,7 +236,7 @@ export async function enableChannel(id: string): Promise<void> {
     `/api/v1/council/channels/${encodeURIComponent(id)}/enable`,
     { method: "POST" },
   );
-  if (!res.ok) throw new Error("Failed to re-enable channel");
+  if (!res.ok) await throwFromErrorResponse(res, "Failed to re-enable channel");
 }
 
 /** List active channels for a council. */
@@ -238,7 +246,7 @@ export async function listChannels(
   const res = await platformFetch(
     `/api/v1/council/channels?councilId=${encodeURIComponent(councilId)}`,
   );
-  if (!res.ok) throw new Error("Failed to fetch channels");
+  if (!res.ok) await throwFromErrorResponse(res, "Failed to fetch channels");
   const { data } = await res.json();
   return data;
 }
@@ -252,7 +260,9 @@ export async function listDisabledChannels(
       encodeURIComponent(councilId)
     }`,
   );
-  if (!res.ok) throw new Error("Failed to fetch disabled channels");
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to fetch disabled channels");
+  }
   const { data } = await res.json();
   return data;
 }
@@ -280,7 +290,9 @@ export async function listJoinRequests(
   let qs = `?councilId=${encodeURIComponent(councilId)}`;
   if (status) qs += `&status=${encodeURIComponent(status)}`;
   const res = await platformFetch(`/api/v1/council/provider-requests${qs}`);
-  if (!res.ok) throw new Error("Failed to fetch join requests");
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to fetch join requests");
+  }
   const { data } = await res.json();
   return data;
 }
@@ -293,7 +305,9 @@ export async function approveJoinRequest(id: string): Promise<void> {
       method: "POST",
     },
   );
-  if (!res.ok) throw new Error("Failed to approve join request");
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to approve join request");
+  }
 }
 
 /** Reject a join request (admin). */
@@ -304,7 +318,9 @@ export async function rejectJoinRequest(id: string): Promise<void> {
       method: "POST",
     },
   );
-  if (!res.ok) throw new Error("Failed to reject join request");
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to reject join request");
+  }
 }
 
 /** Submit a join request (public, no auth). */
@@ -322,10 +338,9 @@ export async function submitJoinRequest(data: {
       body: JSON.stringify(data),
     },
   );
-  if (res.status === 409) {
-    throw new Error("A pending request already exists for this key");
+  if (!res.ok) {
+    await throwFromErrorResponse(res, "Failed to submit join request");
   }
-  if (!res.ok) throw new Error("Failed to submit join request");
 }
 
 /** Check if the platform URL is configured. */
