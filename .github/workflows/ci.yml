@@ -9,6 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: No committed wasm artifacts
+        run: |
+          if git ls-files | grep -E '\.wasm$'; then
+            echo 'ERROR: wasm artifacts must never be committed - build.ts downloads them from the soroban-core release'
+            exit 1
+          fi
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x

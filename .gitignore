@@ -5,3 +5,6 @@ public/buffer.js
 public/styles.css
 public/health.json
 .data/
+
+# Contract wasms are downloaded at build time (src/build.ts) - never commit them
+*.wasm
